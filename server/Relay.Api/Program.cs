@@ -5,7 +5,10 @@ using Relay.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 // MVC controllers + RFC 7807 ProblemDetails for error responses.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
 
 // EF Core SQLite persistence.

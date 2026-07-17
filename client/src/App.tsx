@@ -2,12 +2,16 @@ import { Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import HealthPage from './pages/HealthPage';
+import ConnectorsPage from './pages/ConnectorsPage';
+import ConnectionsPage from './pages/ConnectionsPage';
 
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
+        <Route path="connectors" element={<ConnectorsPage />} />
+        <Route path="connections" element={<ConnectionsPage />} />
         <Route path="health" element={<HealthPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>

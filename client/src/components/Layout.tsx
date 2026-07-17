@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 
 const nav: { to: string; label: string }[] = [
   { to: '/', label: 'Home' },
+  { to: '/connectors', label: 'Connectors' },
+  { to: '/connections', label: 'Connections' },
   { to: '/health', label: 'Health' },
 ];
 
