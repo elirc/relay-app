@@ -46,10 +46,19 @@ Base URL: `http://localhost:5080`. Errors are RFC 7807 `application/problem+json
 (with `traceId` + `instance`). List endpoints are paged (`?page=&pageSize=`,
 `pageSize` clamped to 100) and return `{ items, page, pageSize, totalCount, totalPages }`.
 
+**Auth**: every `/api` endpoint (except `POST /api/auth/login` and the public
+`POST /api/hooks/{token}`) requires a `Bearer` JWT from login. Requests are
+scoped to the caller's workspace — a foreign workspace resource returns **404**,
+and actions needing the **Admin** role return **403** for a **Member**. Reads and
+running/retrying flows are open to any member; connector/connection/flow/webhook
+mutations require Admin.
+
 | Method & path | Purpose |
 | --- | --- |
-| `GET /health` | Liveness probe |
-| `GET /api/workspaces` · `/{id}` | Workspace directory |
+| `GET /health` | Liveness probe (anonymous) |
+| `POST /api/auth/login` | Password login → `{ token, expiresAtUtc, user }` |
+| `GET /api/auth/me` | Current authenticated user |
+| `GET /api/workspaces` · `/{id}` | Workspace directory (scoped to caller) |
 | `GET/POST/PUT/DELETE /api/connectors` · `/{id}` | Connector catalog CRUD |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/connections` · `/{id}` | Connection CRUD |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows` · `/{id}` | Flow CRUD |
@@ -137,9 +146,11 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 56 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 68 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
-  validation, and ProblemDetails shape.
-- **Client**: 22 Vitest tests — the API wrapper, health/connectors/connections/
-  flows/runs pages, and the pagination component, all with the API layer mocked.
+  validation, ProblemDetails shape, and the auth denial matrix (401 / 403 / 404,
+  role gating, foreign-workspace isolation).
+- **Client**: 26 Vitest tests — the API wrapper, health/connectors/connections/
+  flows/runs pages, the pagination component, plus the login page and route
+  guard, all with the API layer mocked.

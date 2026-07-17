@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Relay.Api.Contracts.Common;
 using Relay.Api.Contracts.Connections;
+using Relay.Api.Security;
 using Relay.Domain.Entities;
+using Relay.Domain.Enums;
 using Relay.Infrastructure.Persistence;
 
 namespace Relay.Api.Controllers;
@@ -49,8 +51,10 @@ public sealed class ConnectionsController : ControllerBase
     }
 
     [HttpPost]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(ConnectionDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ConnectionDto>> Create(
         Guid workspaceId,
@@ -87,8 +91,10 @@ public sealed class ConnectionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(ConnectionDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ConnectionDto>> Update(
         Guid workspaceId,
@@ -116,7 +122,9 @@ public sealed class ConnectionsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(Guid workspaceId, Guid id, CancellationToken ct)

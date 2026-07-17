@@ -2,12 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Relay.Api.Contracts.Common;
 using Relay.Api.Contracts.Connectors;
+using Relay.Api.Security;
 using Relay.Domain.Entities;
+using Relay.Domain.Enums;
 using Relay.Infrastructure.Persistence;
 
 namespace Relay.Api.Controllers;
 
-/// <summary>CRUD for the global connector catalog.</summary>
+/// <summary>CRUD for the global connector catalog. Reads are open to any member;
+/// catalog mutations require Admin.</summary>
 [ApiController]
 [Route("api/connectors")]
 public sealed class ConnectorsController : ControllerBase
@@ -39,8 +42,10 @@ public sealed class ConnectorsController : ControllerBase
     }
 
     [HttpPost]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(ConnectorDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ConnectorDto>> Create(CreateConnectorRequest request, CancellationToken ct)
     {
@@ -71,8 +76,10 @@ public sealed class ConnectorsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(ConnectorDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ConnectorDto>> Update(Guid id, UpdateConnectorRequest request, CancellationToken ct)
     {
@@ -89,7 +96,9 @@ public sealed class ConnectorsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

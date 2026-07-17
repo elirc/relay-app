@@ -2,7 +2,9 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Relay.Api.Contracts.Webhooks;
+using Relay.Api.Security;
 using Relay.Domain.Entities;
+using Relay.Domain.Enums;
 using Relay.Infrastructure.Persistence;
 
 namespace Relay.Api.Controllers;
@@ -32,7 +34,9 @@ public sealed class WebhooksController : ControllerBase
     }
 
     [HttpPost]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(WebhookDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<WebhookDto>> Create(Guid workspaceId, Guid flowId, CancellationToken ct)
     {
@@ -54,7 +58,9 @@ public sealed class WebhooksController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid workspaceId, Guid flowId, Guid id, CancellationToken ct)
     {

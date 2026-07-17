@@ -1,9 +1,12 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Relay.Api.Contracts.Auth;
 using Relay.Infrastructure.Persistence;
 
 namespace Relay.Tests.Support;
@@ -49,6 +52,26 @@ public class RelayApiFactory : WebApplicationFactory<Program>
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
         await action(db);
+    }
+
+    /// <summary>Logs in and returns a bearer token for the given credentials.</summary>
+    public async Task<string> LoginAsync(string email = "owner@acme.test", string password = "password123")
+    {
+        using var client = CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<LoginResponse>(TestJson.Options);
+        return body!.Token;
+    }
+
+    /// <summary>Attaches a bearer token to <paramref name="client"/> (default: the seeded Admin owner).</summary>
+    public async Task AuthenticateAsync(
+        HttpClient client,
+        string email = "owner@acme.test",
+        string password = "password123")
+    {
+        var token = await LoginAsync(email, password);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     protected override void Dispose(bool disposing)

@@ -7,6 +7,19 @@ export function apiBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL ?? DEFAULT_BASE_URL;
 }
 
+// Bearer token + expiry handling. The auth context sets these; every request
+// attaches the token, and a 401 notifies the handler so the app can log out.
+let authToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+}
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 /** RFC 7807 ProblemDetails body returned by the API on error. */
 export interface ProblemDetails {
   type?: string;
@@ -39,6 +52,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { method = 'GET', body, signal } = options;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
   let response: Response;
   try {
@@ -53,6 +67,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (!response.ok) {
+    if (response.status === 401) unauthorizedHandler?.();
     const problem = await safeParseProblem(response);
     const message = problem?.title ?? problem?.detail ?? `Request failed with status ${response.status}`;
     throw new ApiError(response.status, message, problem);
