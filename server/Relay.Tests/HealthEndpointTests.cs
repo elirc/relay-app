@@ -1,15 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Relay.Api.Controllers;
+using Relay.Tests.Support;
 
 namespace Relay.Tests;
 
-public sealed class HealthEndpointTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthEndpointTests : IClassFixture<RelayApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly RelayApiFactory _factory;
 
-    public HealthEndpointTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public HealthEndpointTests(RelayApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Get_Health_ReturnsOkStatus()
