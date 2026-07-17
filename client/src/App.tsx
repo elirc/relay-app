@@ -4,6 +4,8 @@ import HomePage from './pages/HomePage';
 import HealthPage from './pages/HealthPage';
 import ConnectorsPage from './pages/ConnectorsPage';
 import ConnectionsPage from './pages/ConnectionsPage';
+import FlowsPage from './pages/FlowsPage';
+import FlowEditorPage from './pages/FlowEditorPage';
 
 export default function App() {
   return (
@@ -12,6 +14,9 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="connectors" element={<ConnectorsPage />} />
         <Route path="connections" element={<ConnectionsPage />} />
+        <Route path="flows" element={<FlowsPage />} />
+        <Route path="flows/new" element={<FlowEditorPage />} />
+        <Route path="flows/:id" element={<FlowEditorPage />} />
         <Route path="health" element={<HealthPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>

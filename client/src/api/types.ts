@@ -44,3 +44,39 @@ export interface Connection {
   createdAtUtc: string;
   updatedAtUtc: string;
 }
+
+export interface FlowStep {
+  id: string;
+  order: number;
+  name: string;
+  connectionId: string;
+  connectionName: string;
+  action: string;
+  configJson: string;
+}
+
+export interface FlowSummary {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string | null;
+  isEnabled: boolean;
+  triggerConnectionId: string;
+  triggerConnectionName: string;
+  stepCount: number;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface FlowDetail {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string | null;
+  isEnabled: boolean;
+  triggerConnectionId: string;
+  triggerConnectionName: string;
+  steps: FlowStep[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
