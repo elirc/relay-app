@@ -6,6 +6,7 @@ const nav: { to: string; label: string }[] = [
   { to: '/connectors', label: 'Connectors' },
   { to: '/connections', label: 'Connections' },
   { to: '/flows', label: 'Flows' },
+  { to: '/runs', label: 'Runs' },
   { to: '/health', label: 'Health' },
 ];
 

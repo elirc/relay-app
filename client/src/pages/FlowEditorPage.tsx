@@ -5,6 +5,7 @@ import { useAsync } from '../hooks/useAsync';
 import { listConnections } from '../api/connections';
 import { createFlow, getFlow, updateFlow } from '../api/flows';
 import type { FlowInput, FlowStepInput } from '../api/flows';
+import { createWebhook, deleteWebhook, listWebhooks } from '../api/webhooks';
 import type { Connection } from '../api/types';
 import { ApiError } from '../api/client';
 
@@ -214,6 +215,79 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
           </button>
         </div>
       </form>
+
+      {isEdit && flowId && <WebhooksSection workspaceId={workspaceId} flowId={flowId} />}
     </section>
+  );
+}
+
+function WebhooksSection({ workspaceId, flowId }: { workspaceId: string; flowId: string }) {
+  const webhooks = useAsync(() => listWebhooks(workspaceId, flowId), [workspaceId, flowId]);
+  const [error, setError] = useState<string>();
+
+  async function add() {
+    setError(undefined);
+    try {
+      await createWebhook(workspaceId, flowId);
+      webhooks.reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create webhook');
+    }
+  }
+
+  async function remove(id: string) {
+    setError(undefined);
+    try {
+      await deleteWebhook(workspaceId, flowId, id);
+      webhooks.reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete webhook');
+    }
+  }
+
+  return (
+    <div className="webhooks">
+      <div className="row-between">
+        <h2>Inbound webhooks</h2>
+        <button type="button" onClick={add}>
+          Add webhook
+        </button>
+      </div>
+      <p>POST to a webhook URL to trigger this flow (the flow must be enabled).</p>
+      {error && <p role="alert" className="error">{error}</p>}
+      {webhooks.status === 'loading' && <p role="status">Loading webhooks…</p>}
+      {webhooks.status === 'error' && <p role="alert" className="error">{webhooks.message}</p>}
+      {webhooks.status === 'success' && (
+        <table>
+          <thead>
+            <tr>
+              <th>URL</th>
+              <th>State</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {webhooks.data.map((w) => (
+              <tr key={w.id}>
+                <td>
+                  <code>{w.url}</code>
+                </td>
+                <td>{w.isEnabled ? 'Enabled' : 'Disabled'}</td>
+                <td>
+                  <button type="button" onClick={() => remove(w.id)} aria-label={`Delete webhook ${w.token}`}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {webhooks.data.length === 0 && (
+              <tr>
+                <td colSpan={3}>No webhooks yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }

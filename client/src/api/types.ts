@@ -80,3 +80,42 @@ export interface FlowDetail {
   createdAtUtc: string;
   updatedAtUtc: string;
 }
+
+export interface RunStepLog {
+  id: string;
+  stepOrder: number;
+  name: string;
+  status: RunStatus;
+  message?: string | null;
+  startedAtUtc: string;
+  completedAtUtc?: string | null;
+  durationMs: number;
+}
+
+export interface RunSummary {
+  id: string;
+  flowId: string;
+  flowName: string;
+  status: RunStatus;
+  trigger: RunTrigger;
+  startedAtUtc: string;
+  completedAtUtc?: string | null;
+  durationMs: number;
+  retryCount: number;
+}
+
+export interface RunDetail extends RunSummary {
+  error?: string | null;
+  triggerPayloadJson?: string | null;
+  stepLogs: RunStepLog[];
+}
+
+export interface Webhook {
+  id: string;
+  flowId: string;
+  token: string;
+  url: string;
+  isEnabled: boolean;
+  createdAtUtc: string;
+  lastTriggeredAtUtc?: string | null;
+}

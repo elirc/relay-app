@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync';
 import { useWorkspace } from '../workspace/WorkspaceContext';
 import { deleteFlow, disableFlow, enableFlow, listFlows } from '../api/flows';
+import { runFlow } from '../api/runs';
 import { ApiError } from '../api/client';
 import { useState } from 'react';
 
@@ -16,6 +17,17 @@ export default function FlowsPage() {
 function FlowsInner({ workspaceId }: { workspaceId: string }) {
   const flows = useAsync(() => listFlows(workspaceId, 1, 100).then((p) => p.items), [workspaceId]);
   const [error, setError] = useState<string>();
+  const navigate = useNavigate();
+
+  async function run(id: string) {
+    setError(undefined);
+    try {
+      await runFlow(workspaceId, id);
+      navigate('/runs');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to run flow');
+    }
+  }
 
   async function toggle(id: string, isEnabled: boolean) {
     setError(undefined);
@@ -72,6 +84,9 @@ function FlowsInner({ workspaceId }: { workspaceId: string }) {
                   <span className="badge">{f.isEnabled ? 'Enabled' : 'Disabled'}</span>
                 </td>
                 <td className="actions">
+                  <button type="button" onClick={() => run(f.id)} aria-label={`Run ${f.name}`}>
+                    Run now
+                  </button>
                   <button type="button" onClick={() => toggle(f.id, f.isEnabled)}>
                     {f.isEnabled ? 'Disable' : 'Enable'}
                   </button>
