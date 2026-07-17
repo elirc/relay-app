@@ -26,7 +26,7 @@ cd server
 dotnet restore
 dotnet build
 dotnet test          # xUnit + WebApplicationFactory integration tests
-dotnet run --project Relay.Api   # serves the API (Swagger at /swagger in Dev)
+dotnet run --project Relay.Api   # serves the API on http://localhost:5080
 ```
 
 ### Client
