@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useAsync } from '../hooks/useAsync';
 import { useWorkspace } from '../workspace/WorkspaceContext';
 import { createConnection, deleteConnection, listConnections } from '../api/connections';
-import type { CreateConnectionInput } from '../api/connections';
 import { listConnectors } from '../api/connectors';
 import { ApiError } from '../api/client';
+import { buildConfigJson, parseSchemaFields } from '../lib/schema';
 
 export default function ConnectionsPage() {
   const { current, status: wsStatus, message: wsMessage } = useWorkspace();
@@ -36,25 +36,45 @@ function ConnectionsInner({
   );
   const connectors = useAsync(() => listConnectors(1, 100).then((p) => p.items), []);
 
-  const [form, setForm] = useState<CreateConnectionInput>({
-    connectorId: '',
-    name: '',
-    configJson: '{}',
-    credentialsJson: '',
-  });
+  const [connectorId, setConnectorId] = useState('');
+  const [name, setName] = useState('');
+  const [credentialsJson, setCredentialsJson] = useState('');
+  const [configValues, setConfigValues] = useState<Record<string, string | boolean>>({});
+  const [rawConfig, setRawConfig] = useState('{}');
   const [formError, setFormError] = useState<string>();
   const [busy, setBusy] = useState(false);
+
+  const availableConnectors = connectors.status === 'success' ? connectors.data : [];
+  const selectedConnector = availableConnectors.find((c) => c.id === connectorId);
+  const fields = selectedConnector ? parseSchemaFields(selectedConnector.configSchemaJson) : [];
+
+  function onConnectorChange(id: string) {
+    setConnectorId(id);
+    setConfigValues({});
+    setRawConfig('{}');
+  }
+
+  function resetForm() {
+    setConnectorId('');
+    setName('');
+    setCredentialsJson('');
+    setConfigValues({});
+    setRawConfig('{}');
+  }
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setFormError(undefined);
+    const configJson = fields.length > 0 ? buildConfigJson(fields, configValues) : rawConfig;
     try {
       await createConnection(workspaceId, {
-        ...form,
-        credentialsJson: form.credentialsJson?.trim() ? form.credentialsJson : undefined,
+        connectorId,
+        name,
+        configJson,
+        credentialsJson: credentialsJson.trim() ? credentialsJson : undefined,
       });
-      setForm({ connectorId: '', name: '', configJson: '{}', credentialsJson: '' });
+      resetForm();
       connections.reload();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Failed to install connection');
@@ -91,6 +111,7 @@ function ConnectionsInner({
             <tr>
               <th>Name</th>
               <th>Connector</th>
+              <th>Version</th>
               <th>Status</th>
               <th>Credentials</th>
               <th />
@@ -101,6 +122,14 @@ function ConnectionsInner({
               <tr key={c.id}>
                 <td>{c.name}</td>
                 <td>{c.connectorName}</td>
+                <td>
+                  {c.connectorVersion ? `v${c.connectorVersion}` : '—'}
+                  {c.isVersionDeprecated && (
+                    <span className="badge status-failed" style={{ marginLeft: '0.4rem' }}>
+                      deprecated
+                    </span>
+                  )}
+                </td>
                 <td>{c.status}</td>
                 <td>{c.hasCredentials ? 'set' : '—'}</td>
                 <td>
@@ -112,7 +141,7 @@ function ConnectionsInner({
             ))}
             {connections.data.length === 0 && (
               <tr>
-                <td colSpan={5}>No connections yet.</td>
+                <td colSpan={6}>No connections yet.</td>
               </tr>
             )}
           </tbody>
@@ -123,42 +152,62 @@ function ConnectionsInner({
       <form onSubmit={onCreate} className="stack">
         <label>
           Connector
-          <select
-            value={form.connectorId}
-            onChange={(e) => setForm({ ...form, connectorId: e.target.value })}
-            required
-          >
+          <select value={connectorId} onChange={(e) => onConnectorChange(e.target.value)} required>
             <option value="" disabled>
               Select a connector…
             </option>
-            {connectors.status === 'success' &&
-              connectors.data.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+            {availableConnectors.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.latestVersion ? ` (v${c.latestVersion})` : ''}
+                {c.isLatestDeprecated ? ' — deprecated' : ''}
+              </option>
+            ))}
           </select>
         </label>
         <label>
           Name
-          <input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
+          <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
-        <label>
-          Config (JSON)
-          <input
-            value={form.configJson}
-            onChange={(e) => setForm({ ...form, configJson: e.target.value })}
-          />
-        </label>
+
+        {/* Schema-driven config: one field per connector property. */}
+        {fields.length > 0
+          ? fields.map((field) => (
+              <label key={field.name}>
+                {field.name}
+                {field.required ? ' *' : ''}
+                {field.type === 'boolean' ? (
+                  <input
+                    type="checkbox"
+                    checked={Boolean(configValues[field.name])}
+                    onChange={(e) =>
+                      setConfigValues((v) => ({ ...v, [field.name]: e.target.checked }))
+                    }
+                  />
+                ) : (
+                  <input
+                    type={field.type === 'integer' || field.type === 'number' ? 'number' : 'text'}
+                    value={String(configValues[field.name] ?? '')}
+                    required={field.required}
+                    onChange={(e) =>
+                      setConfigValues((v) => ({ ...v, [field.name]: e.target.value }))
+                    }
+                  />
+                )}
+              </label>
+            ))
+          : selectedConnector && (
+              <label>
+                Config (JSON)
+                <input value={rawConfig} onChange={(e) => setRawConfig(e.target.value)} />
+              </label>
+            )}
+
         <label>
           Credentials (JSON, optional)
           <input
-            value={form.credentialsJson}
-            onChange={(e) => setForm({ ...form, credentialsJson: e.target.value })}
+            value={credentialsJson}
+            onChange={(e) => setCredentialsJson(e.target.value)}
             placeholder='{"apiKey":"…"}'
           />
         </label>

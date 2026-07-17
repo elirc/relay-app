@@ -18,4 +18,7 @@ public sealed record CreateConnectionRequest(
     string? ConfigJson,
 
     [StringLength(8000)]
-    string? CredentialsJson);
+    string? CredentialsJson,
+
+    /// <summary>Target connector version; defaults to the latest non-deprecated version.</summary>
+    int? ConnectorVersion = null);

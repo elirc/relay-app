@@ -13,6 +13,7 @@ public class RelayDbContext : DbContext
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Connector> Connectors => Set<Connector>();
+    public DbSet<ConnectorVersion> ConnectorVersions => Set<ConnectorVersion>();
     public DbSet<Connection> Connections => Set<Connection>();
     public DbSet<Flow> Flows => Set<Flow>();
     public DbSet<FlowStep> FlowSteps => Set<FlowStep>();
@@ -63,6 +64,16 @@ public class RelayDbContext : DbContext
             e.Property(c => c.Description).HasMaxLength(2000);
         });
 
+        b.Entity<ConnectorVersion>(e =>
+        {
+            e.Property(v => v.ConfigSchemaJson).HasMaxLength(8000);
+            e.HasIndex(v => new { v.ConnectorId, v.Version }).IsUnique();
+            e.HasOne(v => v.Connector)
+                .WithMany(c => c.Versions)
+                .HasForeignKey(v => v.ConnectorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         b.Entity<Connection>(e =>
         {
             e.Property(c => c.ConfigJson).HasMaxLength(8000);
@@ -75,6 +86,10 @@ public class RelayDbContext : DbContext
             e.HasOne(c => c.Connector)
                 .WithMany(con => con.Connections)
                 .HasForeignKey(c => c.ConnectorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(c => c.ConnectorVersion)
+                .WithMany()
+                .HasForeignKey(c => c.ConnectorVersionId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

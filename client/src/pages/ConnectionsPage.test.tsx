@@ -84,4 +84,44 @@ describe('ConnectionsPage', () => {
       ),
     );
   });
+
+  it('renders a schema-driven field and builds config JSON from it', async () => {
+    const schemaConnector: Connector = {
+      ...connector,
+      id: 'con2',
+      key: 'slack',
+      name: 'Slack',
+      configSchemaJson:
+        '{"type":"object","properties":{"channel":{"type":"string"}},"required":["channel"]}',
+      latestVersion: 1,
+    };
+    vi.spyOn(connectorsApi, 'listConnectors').mockResolvedValue(page([schemaConnector]));
+    vi.spyOn(connectionsApi, 'listConnections').mockResolvedValue(page([]));
+    const create = vi.spyOn(connectionsApi, 'createConnection').mockResolvedValue(connection);
+
+    render(<ConnectionsPage />);
+    await screen.findByText('No connections yet.');
+
+    await userEvent.selectOptions(screen.getByLabelText('Connector'), 'con2');
+    await userEvent.type(screen.getByLabelText('Name'), 'Alerts');
+    await userEvent.type(screen.getByLabelText(/channel/i), '#ops');
+    await userEvent.click(screen.getByRole('button', { name: /install connection/i }));
+
+    await waitFor(() =>
+      expect(create).toHaveBeenCalledWith(
+        'ws1',
+        expect.objectContaining({ connectorId: 'con2', configJson: '{"channel":"#ops"}' }),
+      ),
+    );
+  });
+
+  it('shows a deprecated badge for a connection on a deprecated version', async () => {
+    vi.spyOn(connectionsApi, 'listConnections').mockResolvedValue(
+      page([{ ...connection, connectorVersion: 1, isVersionDeprecated: true }]),
+    );
+
+    render(<ConnectionsPage />);
+
+    expect(await screen.findByText('deprecated')).toBeInTheDocument();
+  });
 });

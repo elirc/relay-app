@@ -18,6 +18,13 @@ public static class DatabaseSeeder
     public static readonly Guid SheetsConnectorId = new("11111111-0000-0000-0000-000000000004");
     public static readonly Guid DelayConnectorId = new("11111111-0000-0000-0000-000000000005");
 
+    // Each seeded connector ships a v1 version carrying the same schema.
+    public static readonly Guid HttpConnectorV1Id = new("1a1a1a1a-0000-0000-0000-000000000001");
+    public static readonly Guid SlackConnectorV1Id = new("1a1a1a1a-0000-0000-0000-000000000002");
+    public static readonly Guid EmailConnectorV1Id = new("1a1a1a1a-0000-0000-0000-000000000003");
+    public static readonly Guid SheetsConnectorV1Id = new("1a1a1a1a-0000-0000-0000-000000000004");
+    public static readonly Guid DelayConnectorV1Id = new("1a1a1a1a-0000-0000-0000-000000000005");
+
     public static readonly Guid DemoWorkspaceId = new("22222222-0000-0000-0000-000000000001");
     public static readonly Guid DemoUserId = new("33333333-0000-0000-0000-000000000001");
     public static readonly Guid DemoInboundConnectionId = new("44444444-0000-0000-0000-000000000001");
@@ -92,7 +99,25 @@ public static class DatabaseSeeder
                 ConfigSchemaJson = """{"type":"object","properties":{"seconds":{"type":"integer"}},"required":["seconds"]}""",
                 CreatedAtUtc = SeedTime,
             });
+
+        // A v1 schema version per connector (mirrors the connector's schema).
+        db.ConnectorVersions.AddRange(
+            SeedVersion(HttpConnectorV1Id, HttpConnectorId, """{"type":"object","properties":{"method":{"type":"string"},"url":{"type":"string"}},"required":["url"]}"""),
+            SeedVersion(SlackConnectorV1Id, SlackConnectorId, """{"type":"object","properties":{"channel":{"type":"string"}},"required":["channel"]}"""),
+            SeedVersion(EmailConnectorV1Id, EmailConnectorId, """{"type":"object","properties":{"from":{"type":"string"}},"required":["from"]}"""),
+            SeedVersion(SheetsConnectorV1Id, SheetsConnectorId, """{"type":"object","properties":{"spreadsheetId":{"type":"string"}},"required":["spreadsheetId"]}"""),
+            SeedVersion(DelayConnectorV1Id, DelayConnectorId, """{"type":"object","properties":{"seconds":{"type":"integer"}},"required":["seconds"]}"""));
     }
+
+    private static ConnectorVersion SeedVersion(Guid id, Guid connectorId, string schema) => new()
+    {
+        Id = id,
+        ConnectorId = connectorId,
+        Version = 1,
+        ConfigSchemaJson = schema,
+        IsDeprecated = false,
+        CreatedAtUtc = SeedTime,
+    };
 
     private static async Task SeedDemoWorkspaceAsync(RelayDbContext db)
     {
@@ -123,6 +148,7 @@ public static class DatabaseSeeder
                 Id = DemoInboundConnectionId,
                 WorkspaceId = DemoWorkspaceId,
                 ConnectorId = HttpConnectorId,
+                ConnectorVersionId = HttpConnectorV1Id,
                 Name = "Inbound webhook source",
                 ConfigJson = """{"url":"https://acme.test/hooks/new-signup"}""",
                 Status = ConnectionStatus.Active,
@@ -134,6 +160,7 @@ public static class DatabaseSeeder
                 Id = DemoSlackConnectionId,
                 WorkspaceId = DemoWorkspaceId,
                 ConnectorId = SlackConnectorId,
+                ConnectorVersionId = SlackConnectorV1Id,
                 Name = "Acme #alerts",
                 ConfigJson = """{"channel":"#alerts"}""",
                 Status = ConnectionStatus.Active,

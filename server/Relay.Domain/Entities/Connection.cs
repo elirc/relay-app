@@ -16,6 +16,10 @@ public class Connection
     public Guid ConnectorId { get; set; }
     public Connector? Connector { get; set; }
 
+    /// <summary>The connector schema version this connection was validated against.</summary>
+    public Guid? ConnectorVersionId { get; set; }
+    public ConnectorVersion? ConnectorVersion { get; set; }
+
     public required string Name { get; set; }
 
     /// <summary>Connector-specific configuration as a JSON object.</summary>

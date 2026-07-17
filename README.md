@@ -29,9 +29,12 @@ Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
                     └─ Webhook           (inbound endpoint that triggers the flow)
 ```
 
-- **Connector** — a catalog entry (global): key, name, auth kind, JSON config schema.
+- **Connector** — a catalog entry (global): key, name, auth kind, JSON config
+  schema. Connectors are **versioned**: each has one or more schema versions, and
+  a version can be **deprecated** to steer new installs to a newer one.
 - **Connection** — a connector installed in a workspace, with config + stored
-  credentials. Credentials are **never** returned to clients (only a
+  credentials. The config is **validated against the connector version's JSON
+  schema** on create/update. Credentials are **never** returned to clients (only a
   `hasCredentials` flag).
 - **Flow** — a trigger connection plus an ordered list of steps; enable/disable.
 - **Run** — one execution: status (`Pending`/`Running`/`Succeeded`/`Failed`),
@@ -60,7 +63,9 @@ mutations require Admin.
 | `GET /api/auth/me` | Current authenticated user |
 | `GET /api/workspaces` · `/{id}` | Workspace directory (scoped to caller) |
 | `GET/POST/PUT/DELETE /api/connectors` · `/{id}` | Connector catalog CRUD |
-| `GET/POST/PUT/DELETE /api/workspaces/{ws}/connections` · `/{id}` | Connection CRUD |
+| `GET/POST /api/connectors/{id}/versions` | List / publish connector schema versions |
+| `POST /api/connectors/{id}/versions/{v}/deprecate` | Deprecate a version |
+| `GET/POST/PUT/DELETE /api/workspaces/{ws}/connections` · `/{id}` | Connection CRUD (config validated against the connector version) |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows` · `/{id}` | Flow CRUD |
 | `POST /api/workspaces/{ws}/flows/{id}/enable` · `/disable` | Toggle a flow |
 | `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
@@ -146,11 +151,13 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 68 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 87 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
-  validation, ProblemDetails shape, and the auth denial matrix (401 / 403 / 404,
-  role gating, foreign-workspace isolation).
-- **Client**: 26 Vitest tests — the API wrapper, health/connectors/connections/
-  flows/runs pages, the pagination component, plus the login page and route
-  guard, all with the API layer mocked.
+  validation, ProblemDetails shape, the auth denial matrix (401 / 403 / 404, role
+  gating, foreign-workspace isolation), and connector versioning + JSON-schema
+  config validation (deprecation, version resolution, invalid/typed config).
+- **Client**: 32 Vitest tests — the API wrapper, health/connectors/connections/
+  flows/runs pages, the pagination component, the login page and route guard, and
+  the schema-driven connection form (field parsing + config building), all with
+  the API layer mocked.

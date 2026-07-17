@@ -18,10 +18,14 @@ public class Connector
     public required string Description { get; set; }
     public AuthKind AuthKind { get; set; }
 
-    /// <summary>JSON Schema describing the config a connection must supply.</summary>
+    /// <summary>
+    /// JSON Schema for the connector's current (latest) version. Mirrors the
+    /// newest <see cref="ConnectorVersion"/> so single-schema callers keep working.
+    /// </summary>
     public required string ConfigSchemaJson { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public ICollection<Connection> Connections { get; set; } = new List<Connection>();
+    public ICollection<ConnectorVersion> Versions { get; set; } = new List<ConnectorVersion>();
 }

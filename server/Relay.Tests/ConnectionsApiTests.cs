@@ -86,12 +86,12 @@ public sealed class ConnectionsApiTests : IClassFixture<RelayApiFactory>, IAsync
     public async Task Update_PreservesCredentials_WhenOmitted()
     {
         var created = await _client.PostAsJsonAsync(Base(DatabaseSeeder.DemoWorkspaceId),
-            new CreateConnectionRequest(DatabaseSeeder.SlackConnectorId, "Editable", "{}", """{"token":"abc"}"""));
+            new CreateConnectionRequest(DatabaseSeeder.SlackConnectorId, "Editable", """{"channel":"#editable"}""", """{"token":"abc"}"""));
         var dto = await created.Content.ReadFromJsonAsync<ConnectionDto>(TestJson.Options);
 
         // Update without credentials → should stay HasCredentials = true.
         var updated = await _client.PutAsJsonAsync($"{Base(DatabaseSeeder.DemoWorkspaceId)}/{dto!.Id}",
-            new UpdateConnectionRequest("Renamed", "{}", null, ConnectionStatus.Disabled));
+            new UpdateConnectionRequest("Renamed", """{"channel":"#renamed"}""", null, ConnectionStatus.Disabled));
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
 
         var result = await updated.Content.ReadFromJsonAsync<ConnectionDto>(TestJson.Options);
@@ -114,7 +114,7 @@ public sealed class ConnectionsApiTests : IClassFixture<RelayApiFactory>, IAsync
     public async Task Delete_UnusedConnection_Returns204()
     {
         var created = await _client.PostAsJsonAsync(Base(DatabaseSeeder.DemoWorkspaceId),
-            new CreateConnectionRequest(DatabaseSeeder.DelayConnectorId, "Temp", "{}", null));
+            new CreateConnectionRequest(DatabaseSeeder.DelayConnectorId, "Temp", """{"seconds":1}""", null));
         var dto = await created.Content.ReadFromJsonAsync<ConnectionDto>(TestJson.Options);
 
         var response = await _client.DeleteAsync($"{Base(DatabaseSeeder.DemoWorkspaceId)}/{dto!.Id}");
