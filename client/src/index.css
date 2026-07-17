@@ -140,3 +140,31 @@ code {
   font-size: 0.8rem;
   border: 1px solid #334155;
 }
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.step-card {
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.75rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.step-card legend {
+  color: #a5b4fc;
+  font-weight: 600;
+  padding: 0 0.4rem;
+}
