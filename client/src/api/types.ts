@@ -28,6 +28,17 @@ export interface Connector {
   description: string;
   authKind: AuthKind;
   configSchemaJson: string;
+  latestVersion?: number;
+  isLatestDeprecated?: boolean;
+  createdAtUtc: string;
+}
+
+export interface ConnectorVersion {
+  id: string;
+  connectorId: string;
+  version: number;
+  configSchemaJson: string;
+  isDeprecated: boolean;
   createdAtUtc: string;
 }
 
@@ -37,6 +48,8 @@ export interface Connection {
   connectorId: string;
   connectorKey: string;
   connectorName: string;
+  connectorVersion?: number | null;
+  isVersionDeprecated?: boolean;
   name: string;
   configJson: string;
   hasCredentials: boolean;

@@ -27,6 +27,7 @@ public sealed class ConnectorsController : ControllerBase
     {
         var result = await _db.Connectors
             .AsNoTracking()
+            .Include(c => c.Versions)
             .OrderBy(c => c.Name)
             .ToPagedResultAsync(pagination, ConnectorDto.From, ct);
         return Ok(result);
@@ -37,7 +38,10 @@ public sealed class ConnectorsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ConnectorDto>> Get(Guid id, CancellationToken ct)
     {
-        var connector = await _db.Connectors.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+        var connector = await _db.Connectors
+            .AsNoTracking()
+            .Include(c => c.Versions)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
         return connector is null ? NotFoundProblem(id) : Ok(ConnectorDto.From(connector));
     }
 
@@ -58,6 +62,8 @@ public sealed class ConnectorsController : ControllerBase
                 statusCode: StatusCodes.Status409Conflict);
         }
 
+        var now = DateTimeOffset.UtcNow;
+        var schema = string.IsNullOrWhiteSpace(request.ConfigSchemaJson) ? "{}" : request.ConfigSchemaJson;
         var connector = new Connector
         {
             Id = Guid.NewGuid(),
@@ -65,9 +71,19 @@ public sealed class ConnectorsController : ControllerBase
             Name = request.Name!.Trim(),
             Description = request.Description?.Trim() ?? string.Empty,
             AuthKind = request.AuthKind!.Value,
-            ConfigSchemaJson = string.IsNullOrWhiteSpace(request.ConfigSchemaJson) ? "{}" : request.ConfigSchemaJson,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
+            ConfigSchemaJson = schema,
+            CreatedAtUtc = now,
         };
+        // Every connector ships an initial v1 schema version.
+        connector.Versions.Add(new ConnectorVersion
+        {
+            Id = Guid.NewGuid(),
+            ConnectorId = connector.Id,
+            Version = 1,
+            ConfigSchemaJson = schema,
+            IsDeprecated = false,
+            CreatedAtUtc = now,
+        });
 
         _db.Connectors.Add(connector);
         await _db.SaveChangesAsync(ct);
@@ -83,13 +99,35 @@ public sealed class ConnectorsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ConnectorDto>> Update(Guid id, UpdateConnectorRequest request, CancellationToken ct)
     {
-        var connector = await _db.Connectors.FirstOrDefaultAsync(c => c.Id == id, ct);
+        var connector = await _db.Connectors
+            .Include(c => c.Versions)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
         if (connector is null) return NotFoundProblem(id);
 
         connector.Name = request.Name!.Trim();
         connector.Description = request.Description?.Trim() ?? string.Empty;
         connector.AuthKind = request.AuthKind!.Value;
-        connector.ConfigSchemaJson = string.IsNullOrWhiteSpace(request.ConfigSchemaJson) ? "{}" : request.ConfigSchemaJson;
+
+        // A changed schema publishes a new version (the previous one stays for
+        // connections already installed on it).
+        var newSchema = string.IsNullOrWhiteSpace(request.ConfigSchemaJson) ? "{}" : request.ConfigSchemaJson;
+        if (newSchema != connector.ConfigSchemaJson)
+        {
+            var nextVersion = (connector.Versions.Count > 0 ? connector.Versions.Max(v => v.Version) : 0) + 1;
+            var version = new ConnectorVersion
+            {
+                Id = Guid.NewGuid(),
+                ConnectorId = connector.Id,
+                Version = nextVersion,
+                ConfigSchemaJson = newSchema,
+                IsDeprecated = false,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+            };
+            // Add through the DbSet so EF marks the client-keyed row Added, not Modified.
+            _db.ConnectorVersions.Add(version);
+            connector.Versions.Add(version);
+            connector.ConfigSchemaJson = newSchema;
+        }
 
         await _db.SaveChangesAsync(ct);
         return Ok(ConnectorDto.From(connector));

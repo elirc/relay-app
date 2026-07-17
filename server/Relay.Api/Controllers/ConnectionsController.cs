@@ -5,6 +5,7 @@ using Relay.Api.Contracts.Connections;
 using Relay.Api.Security;
 using Relay.Domain.Entities;
 using Relay.Domain.Enums;
+using Relay.Domain.Validation;
 using Relay.Infrastructure.Persistence;
 
 namespace Relay.Api.Controllers;
@@ -32,6 +33,7 @@ public sealed class ConnectionsController : ControllerBase
         var result = await _db.Connections
             .AsNoTracking()
             .Include(c => c.Connector)
+            .Include(c => c.ConnectorVersion)
             .Where(c => c.WorkspaceId == workspaceId)
             .OrderBy(c => c.Name)
             .ToPagedResultAsync(pagination, ConnectionDto.From, ct);
@@ -46,6 +48,7 @@ public sealed class ConnectionsController : ControllerBase
         var connection = await _db.Connections
             .AsNoTracking()
             .Include(c => c.Connector)
+            .Include(c => c.ConnectorVersion)
             .FirstOrDefaultAsync(c => c.Id == id && c.WorkspaceId == workspaceId, ct);
         return connection is null ? ConnectionNotFound(id) : Ok(ConnectionDto.From(connection));
     }
@@ -63,10 +66,45 @@ public sealed class ConnectionsController : ControllerBase
     {
         if (!await WorkspaceExists(workspaceId, ct)) return WorkspaceNotFound(workspaceId);
 
-        var connector = await _db.Connectors.FirstOrDefaultAsync(c => c.Id == request.ConnectorId!.Value, ct);
+        var connector = await _db.Connectors
+            .Include(c => c.Versions)
+            .FirstOrDefaultAsync(c => c.Id == request.ConnectorId!.Value, ct);
         if (connector is null)
         {
             ModelState.AddModelError(nameof(request.ConnectorId), "Unknown connector.");
+            return ValidationProblem(ModelState);
+        }
+
+        // Resolve the target schema version: an explicit request must exist and
+        // must not be deprecated; otherwise default to the latest live version.
+        ConnectorVersion? version;
+        if (request.ConnectorVersion is int requested)
+        {
+            version = connector.Versions.FirstOrDefault(v => v.Version == requested);
+            if (version is null)
+            {
+                ModelState.AddModelError(nameof(request.ConnectorVersion), "Unknown connector version.");
+                return ValidationProblem(ModelState);
+            }
+            if (version.IsDeprecated)
+            {
+                ModelState.AddModelError(nameof(request.ConnectorVersion),
+                    "This connector version is deprecated; install a newer version.");
+                return ValidationProblem(ModelState);
+            }
+        }
+        else
+        {
+            version = connector.Versions.Where(v => !v.IsDeprecated).OrderByDescending(v => v.Version).FirstOrDefault()
+                ?? connector.Versions.OrderByDescending(v => v.Version).FirstOrDefault();
+        }
+
+        var configJson = string.IsNullOrWhiteSpace(request.ConfigJson) ? "{}" : request.ConfigJson;
+        var schema = version?.ConfigSchemaJson ?? connector.ConfigSchemaJson;
+        var schemaErrors = JsonSchemaValidator.Validate(schema, configJson);
+        if (schemaErrors.Count > 0)
+        {
+            foreach (var error in schemaErrors) ModelState.AddModelError(nameof(request.ConfigJson), error);
             return ValidationProblem(ModelState);
         }
 
@@ -76,8 +114,9 @@ public sealed class ConnectionsController : ControllerBase
             Id = Guid.NewGuid(),
             WorkspaceId = workspaceId,
             ConnectorId = connector.Id,
+            ConnectorVersionId = version?.Id,
             Name = request.Name!.Trim(),
-            ConfigJson = string.IsNullOrWhiteSpace(request.ConfigJson) ? "{}" : request.ConfigJson,
+            ConfigJson = configJson,
             CredentialsJson = string.IsNullOrWhiteSpace(request.CredentialsJson) ? "{}" : request.CredentialsJson,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
@@ -87,6 +126,7 @@ public sealed class ConnectionsController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         connection.Connector = connector;
+        connection.ConnectorVersion = version;
         return CreatedAtAction(nameof(Get), new { workspaceId, id = connection.Id }, ConnectionDto.From(connection));
     }
 
@@ -104,11 +144,21 @@ public sealed class ConnectionsController : ControllerBase
     {
         var connection = await _db.Connections
             .Include(c => c.Connector)
+            .Include(c => c.ConnectorVersion)
             .FirstOrDefaultAsync(c => c.Id == id && c.WorkspaceId == workspaceId, ct);
         if (connection is null) return ConnectionNotFound(id);
 
+        var configJson = string.IsNullOrWhiteSpace(request.ConfigJson) ? "{}" : request.ConfigJson;
+        var schema = connection.ConnectorVersion?.ConfigSchemaJson ?? connection.Connector?.ConfigSchemaJson ?? "{}";
+        var schemaErrors = JsonSchemaValidator.Validate(schema, configJson);
+        if (schemaErrors.Count > 0)
+        {
+            foreach (var error in schemaErrors) ModelState.AddModelError(nameof(request.ConfigJson), error);
+            return ValidationProblem(ModelState);
+        }
+
         connection.Name = request.Name!.Trim();
-        connection.ConfigJson = string.IsNullOrWhiteSpace(request.ConfigJson) ? "{}" : request.ConfigJson;
+        connection.ConfigJson = configJson;
         connection.Status = request.Status!.Value;
         // Only overwrite credentials when the caller supplies them.
         if (request.CredentialsJson is not null)

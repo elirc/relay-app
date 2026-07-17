@@ -6,6 +6,7 @@ export interface CreateConnectionInput {
   name: string;
   configJson: string;
   credentialsJson?: string;
+  connectorVersion?: number;
 }
 
 export interface UpdateConnectionInput {

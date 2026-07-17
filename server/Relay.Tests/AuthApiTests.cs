@@ -55,7 +55,8 @@ public sealed class AuthApiTests : IClassFixture<RelayApiFactory>, IAsyncLifetim
             db.Connections.Add(new Connection
             {
                 Id = BetaConnectionId, WorkspaceId = BetaWorkspaceId, ConnectorId = DatabaseSeeder.SlackConnectorId,
-                Name = "Beta Slack", ConfigJson = "{}", Status = ConnectionStatus.Active,
+                ConnectorVersionId = DatabaseSeeder.SlackConnectorV1Id,
+                Name = "Beta Slack", ConfigJson = """{"channel":"#beta"}""", Status = ConnectionStatus.Active,
                 CreatedAtUtc = now, UpdatedAtUtc = now,
             });
             db.Flows.Add(new Flow
@@ -169,7 +170,7 @@ public sealed class AuthApiTests : IClassFixture<RelayApiFactory>, IAsyncLifetim
         using var client = await ClientFor(BetaAdmin);
         var response = await client.PostAsJsonAsync(
             $"/api/workspaces/{BetaWorkspaceId}/connections",
-            new CreateConnectionRequest(DatabaseSeeder.SlackConnectorId, "Beta email", "{}", null));
+            new CreateConnectionRequest(DatabaseSeeder.SlackConnectorId, "Beta email", """{"channel":"#ops"}""", null));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
