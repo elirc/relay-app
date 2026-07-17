@@ -168,3 +168,30 @@ code {
   font-weight: 600;
   padding: 0 0.4rem;
 }
+
+.status-succeeded {
+  color: #86efac;
+  border-color: #166534;
+}
+
+.status-failed {
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+.status-running,
+.status-pending {
+  color: #fcd34d;
+  border-color: #78350f;
+}
+
+.status-skipped {
+  color: #94a3b8;
+}
+
+.run-detail,
+.webhooks {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1e293b;
+}
