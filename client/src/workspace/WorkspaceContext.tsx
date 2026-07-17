@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { listWorkspaces } from '../api/workspaces';
 import type { Workspace } from '../api/types';
 import { ApiError } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 
 interface WorkspaceContextValue {
   status: 'loading' | 'ready' | 'error';
@@ -15,13 +16,23 @@ interface WorkspaceContextValue {
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string>();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentId, setCurrentId] = useState<string>();
 
   useEffect(() => {
+    // Only load workspaces once authenticated; reset on logout.
+    if (!isAuthenticated) {
+      setWorkspaces([]);
+      setCurrentId(undefined);
+      setStatus('loading');
+      return;
+    }
+
     const controller = new AbortController();
+    setStatus('loading');
     listWorkspaces()
       .then((list) => {
         if (controller.signal.aborted) return;
@@ -35,7 +46,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setStatus('error');
       });
     return () => controller.abort();
-  }, []);
+  }, [isAuthenticated]);
 
   const value = useMemo<WorkspaceContextValue>(
     () => ({

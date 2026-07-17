@@ -23,7 +23,11 @@ public sealed class WebhooksApiTests : IClassFixture<RelayApiFactory>, IAsyncLif
         _client = factory.CreateClient();
     }
 
-    public Task InitializeAsync() => _factory.SeedAsync();
+    public async Task InitializeAsync()
+    {
+        await _factory.SeedAsync();
+        await _factory.AuthenticateAsync(_client);
+    }
     public Task DisposeAsync() => Task.CompletedTask;
 
     private static StringContent JsonBody(string json) => new(json, Encoding.UTF8, "application/json");

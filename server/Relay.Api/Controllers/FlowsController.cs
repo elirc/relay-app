@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Relay.Api.Contracts.Common;
 using Relay.Api.Contracts.Flows;
+using Relay.Api.Security;
 using Relay.Domain.Entities;
+using Relay.Domain.Enums;
 using Relay.Infrastructure.Persistence;
 
 namespace Relay.Api.Controllers;
@@ -46,8 +48,10 @@ public sealed class FlowsController : ControllerBase
     }
 
     [HttpPost]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(FlowDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<FlowDetailDto>> Create(
         Guid workspaceId,
@@ -80,8 +84,10 @@ public sealed class FlowsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(FlowDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<FlowDetailDto>> Update(
         Guid workspaceId,
@@ -114,19 +120,25 @@ public sealed class FlowsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/enable")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(FlowSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<ActionResult<FlowSummaryDto>> Enable(Guid workspaceId, Guid id, CancellationToken ct) =>
         SetEnabled(workspaceId, id, true, ct);
 
     [HttpPost("{id:guid}/disable")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(typeof(FlowSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public Task<ActionResult<FlowSummaryDto>> Disable(Guid workspaceId, Guid id, CancellationToken ct) =>
         SetEnabled(workspaceId, id, false, ct);
 
     [HttpDelete("{id:guid}")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid workspaceId, Guid id, CancellationToken ct)
     {

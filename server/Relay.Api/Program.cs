@@ -1,14 +1,49 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Relay.Api.Security;
 using Relay.Infrastructure;
 using Relay.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// MVC controllers + RFC 7807 ProblemDetails for error responses.
-builder.Services.AddControllers()
+// MVC controllers + RFC 7807 ProblemDetails for error responses. A global
+// authorization filter enforces workspace tenancy (404) and role checks (403).
+builder.Services.AddControllers(options => options.Filters.Add<WorkspaceAuthorizationFilter>())
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+// JWT bearer authentication. Every endpoint requires an authenticated user by
+// default (fallback policy); public endpoints opt out with [AllowAnonymous].
+var jwtSettings = new JwtSettings();
+builder.Configuration.GetSection(JwtSettings.SectionName).Bind(jwtSettings);
+builder.Services.AddSingleton(jwtSettings);
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false; // keep our exact claim type names
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtSettings.Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
+            NameClaimType = RelayClaims.Name,
+            RoleClaimType = RelayClaims.Role,
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 builder.Services.AddProblemDetails(options =>
     options.CustomizeProblemDetails = context =>
     {
@@ -39,6 +74,10 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 app.UseCors(ClientCors);
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 // Apply migrations and seed on startup (skipped for the test host, which

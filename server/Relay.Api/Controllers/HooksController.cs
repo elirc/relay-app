@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Relay.Domain.Enums;
@@ -8,9 +9,11 @@ namespace Relay.Api.Controllers;
 
 /// <summary>
 /// Public inbound webhook entrypoint. A POST to a webhook's token triggers its
-/// flow with the request body as the run payload.
+/// flow with the request body as the run payload. Unauthenticated by design —
+/// the unguessable token is the credential.
 /// </summary>
 [ApiController]
+[AllowAnonymous]
 [Route("api/hooks")]
 public sealed class HooksController : ControllerBase
 {

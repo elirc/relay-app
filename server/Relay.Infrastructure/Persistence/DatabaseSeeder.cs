@@ -113,6 +113,7 @@ public static class DatabaseSeeder
             Email = "owner@acme.test",
             DisplayName = "Ada Owner",
             PasswordHash = PasswordHasher.Hash("password123"),
+            Role = WorkspaceRole.Admin,
             CreatedAtUtc = SeedTime,
         });
 

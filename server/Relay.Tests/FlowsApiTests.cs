@@ -20,7 +20,11 @@ public sealed class FlowsApiTests : IClassFixture<RelayApiFactory>, IAsyncLifeti
         _client = factory.CreateClient();
     }
 
-    public Task InitializeAsync() => _factory.SeedAsync();
+    public async Task InitializeAsync()
+    {
+        await _factory.SeedAsync();
+        await _factory.AuthenticateAsync(_client);
+    }
     public Task DisposeAsync() => Task.CompletedTask;
 
     private static CreateFlowRequest ValidFlow(string name) => new(

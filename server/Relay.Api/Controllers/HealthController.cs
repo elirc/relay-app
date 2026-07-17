@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Relay.Api.Controllers;
 
 /// <summary>Liveness probe consumed by the client shell and CI smoke tests.</summary>
 [ApiController]
+[AllowAnonymous]
 [Route("health")]
 public sealed class HealthController : ControllerBase
 {

@@ -21,7 +21,11 @@ public sealed class ConnectionsApiTests : IClassFixture<RelayApiFactory>, IAsync
         _client = factory.CreateClient();
     }
 
-    public Task InitializeAsync() => _factory.SeedAsync();
+    public async Task InitializeAsync()
+    {
+        await _factory.SeedAsync();
+        await _factory.AuthenticateAsync(_client);
+    }
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]

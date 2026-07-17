@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import type { CSSProperties } from 'react';
+import { useAuth } from '../auth/AuthContext';
 
 const nav: { to: string; label: string }[] = [
   { to: '/', label: 'Home' },
@@ -21,6 +22,14 @@ function linkStyle({ isActive }: { isActive: boolean }): CSSProperties {
 }
 
 export default function Layout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function onLogout() {
+    logout();
+    navigate('/login', { replace: true });
+  }
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -32,6 +41,16 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        {user && (
+          <div className="app-user">
+            <span className="app-user-name">
+              {user.displayName} · <span className="badge">{user.role}</span>
+            </span>
+            <button type="button" onClick={onLogout}>
+              Sign out
+            </button>
+          </div>
+        )}
       </header>
       <main className="app-main">
         <Outlet />

@@ -31,6 +31,7 @@ public class RelayDbContext : DbContext
         configurationBuilder.Properties<ConnectionStatus>().HaveConversion<string>().HaveMaxLength(20);
         configurationBuilder.Properties<RunStatus>().HaveConversion<string>().HaveMaxLength(20);
         configurationBuilder.Properties<RunTrigger>().HaveConversion<string>().HaveMaxLength(20);
+        configurationBuilder.Properties<WorkspaceRole>().HaveConversion<string>().HaveMaxLength(20);
 
         configurationBuilder.Properties<string>().AreUnicode().HaveMaxLength(1024);
     }

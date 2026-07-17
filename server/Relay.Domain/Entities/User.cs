@@ -1,3 +1,5 @@
+using Relay.Domain.Enums;
+
 namespace Relay.Domain.Entities;
 
 /// <summary>A member of a workspace. Credentials are stored as a salted hash.</summary>
@@ -12,6 +14,9 @@ public class User
 
     /// <summary>PBKDF2/`HMACSHA256`-derived hash — never the raw password.</summary>
     public required string PasswordHash { get; set; }
+
+    /// <summary>Authority within the owning workspace.</summary>
+    public WorkspaceRole Role { get; set; } = WorkspaceRole.Member;
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 }
