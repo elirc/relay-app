@@ -1,0 +1,20 @@
+# Normalize line endings: check out with the platform's native endings, store LF.
+* text=auto
+
+# Explicitly treat source as text (LF in the repo).
+*.cs      text
+*.csproj  text
+*.slnx    text
+*.json    text
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.css     text eol=lf
+*.md      text
+*.html    text
+*.yml     text
+*.yaml    text
+
+# Binary assets — never touch.
+*.png binary
+*.svg text
+*.ico binary

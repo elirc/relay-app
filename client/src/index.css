@@ -195,3 +195,10 @@ code {
   padding-top: 1rem;
   border-top: 1px solid #1e293b;
 }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}

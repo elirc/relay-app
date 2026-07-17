@@ -8,12 +8,59 @@ per-step logging and retry.
 
 This is a monorepo:
 
-| Path      | Stack                                                        |
-| --------- | ----------------------------------------------------------- |
-| `/server` | ASP.NET Core Web API, .NET 10, EF Core + SQLite, xUnit      |
-| `/client` | Vite + React + TypeScript (strict), React Router, Vitest    |
+| Path      | Stack                                                             |
+| --------- | ----------------------------------------------------------------- |
+| `/server` | ASP.NET Core Web API, .NET 10, EF Core + SQLite, xUnit            |
+| `/client` | Vite + React + TypeScript (strict), React Router, Vitest + RTL    |
 
-> Scaffold in progress — see the sprint PRs for feature history.
+Flow execution runs through an in-process executor over **ports** (interfaces),
+so there are **no real external calls** — the default adapter simulates each
+connector deterministically, and tests inject fakes.
+
+---
+
+## Domain
+
+```
+Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
+           ├─ Connection ── Connector   (installed instance of a catalog type)
+           └─ Flow ─┬─ FlowStep         (ordered action steps)
+                    ├─ Run ── RunStepLog (execution history + per-step timeline)
+                    └─ Webhook           (inbound endpoint that triggers the flow)
+```
+
+- **Connector** — a catalog entry (global): key, name, auth kind, JSON config schema.
+- **Connection** — a connector installed in a workspace, with config + stored
+  credentials. Credentials are **never** returned to clients (only a
+  `hasCredentials` flag).
+- **Flow** — a trigger connection plus an ordered list of steps; enable/disable.
+- **Run** — one execution: status (`Pending`/`Running`/`Succeeded`/`Failed`),
+  duration, retry count, and a `RunStepLog` per step (trigger is step 0).
+- **Webhook** — a tokenized URL; `POST` to it triggers the flow.
+
+---
+
+## API
+
+Base URL: `http://localhost:5080`. Errors are RFC 7807 `application/problem+json`
+(with `traceId` + `instance`). List endpoints are paged (`?page=&pageSize=`,
+`pageSize` clamped to 100) and return `{ items, page, pageSize, totalCount, totalPages }`.
+
+| Method & path | Purpose |
+| --- | --- |
+| `GET /health` | Liveness probe |
+| `GET /api/workspaces` · `/{id}` | Workspace directory |
+| `GET/POST/PUT/DELETE /api/connectors` · `/{id}` | Connector catalog CRUD |
+| `GET/POST/PUT/DELETE /api/workspaces/{ws}/connections` · `/{id}` | Connection CRUD |
+| `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows` · `/{id}` | Flow CRUD |
+| `POST /api/workspaces/{ws}/flows/{id}/enable` · `/disable` | Toggle a flow |
+| `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
+| `GET /api/workspaces/{ws}/runs` · `/{runId}` | Run history + detail |
+| `POST /api/workspaces/{ws}/runs/{runId}/retry` | Re-run with the original payload |
+| `GET/POST/DELETE /api/workspaces/{ws}/flows/{id}/webhooks` | Manage webhooks |
+| `POST /api/hooks/{token}` | Public inbound webhook trigger |
+
+---
 
 ## Getting started
 
@@ -25,8 +72,19 @@ Prerequisites: **.NET SDK 10.0.302+**, **Node 20+**, **pnpm 9+**.
 cd server
 dotnet restore
 dotnet build
-dotnet test          # xUnit + WebApplicationFactory integration tests
-dotnet run --project Relay.Api   # serves the API on http://localhost:5080
+dotnet test                       # xUnit + WebApplicationFactory integration tests
+dotnet run --project Relay.Api    # serves the API on http://localhost:5080
+```
+
+On first run the API applies EF Core migrations and seeds a demo workspace
+(**Acme**, slug `acme`), a user (`owner@acme.test` / `password123`), the connector
+catalog, sample connections, a flow, and a webhook (`demo-signup-hook`).
+
+Try a webhook trigger once the server is running:
+
+```bash
+curl -X POST http://localhost:5080/api/hooks/demo-signup-hook \
+     -H 'content-type: application/json' -d '{"email":"new@user.test"}'
 ```
 
 ### Client
@@ -34,10 +92,54 @@ dotnet run --project Relay.Api   # serves the API on http://localhost:5080
 ```bash
 cd client
 pnpm install
-pnpm dev             # Vite dev server
+pnpm dev             # Vite dev server (http://localhost:5173)
 pnpm test            # Vitest + React Testing Library (no server needed)
 pnpm build           # tsc + vite build
 ```
 
-The client expects the API base URL in `VITE_API_BASE_URL` (defaults to
-`http://localhost:5080`). See `client/.env.example`.
+The client reads the API base URL from `VITE_API_BASE_URL` (defaults to
+`http://localhost:5080`). See `client/.env.example`. Client tests mock the API
+layer, so **no running server is required**.
+
+---
+
+## Architecture
+
+**Server** (clean-ish layering):
+
+- `Relay.Domain` — entities, enums, and execution **ports** (`IActionDispatcher`,
+  `IFlowExecutor`). No infrastructure dependencies.
+- `Relay.Infrastructure` — EF Core `RelayDbContext`, migrations, seeder, the
+  `FlowExecutor`, and the `SimulatedActionDispatcher` adapter.
+- `Relay.Api` — controllers, request/response contracts (records with validation),
+  shared pagination, ProblemDetails, CORS.
+- `Relay.Tests` — xUnit: executor unit tests over an in-memory SQLite DB, and API
+  integration tests over `WebApplicationFactory` (Testing environment, in-memory DB).
+
+**Client**: a typed `fetch` wrapper (`ApiError`, `ProblemDetails`), per-feature
+api modules, a `useAsync` data hook, a `WorkspaceProvider` context, and pages for
+connectors, connections, flows (list + editor), and runs.
+
+### Notes / gotchas respected
+
+- **SQLite + DateTimeOffset**: SQLite can't order/compare `DateTimeOffset`, so a
+  value converter stores them as UTC ticks (`long`); enums persist as strings.
+- **Record-DTO validation**: attributes target the **constructor parameters**
+  (not `[property:]`), and value-type request fields are nullable so a missing
+  value is a `400`, not a bind to default.
+- **EF**: `Include` is applied before `Skip`/`Take`; replacing a flow's ordered
+  steps deletes then re-inserts inside a transaction to respect the unique
+  `(FlowId, Order)` index.
+- **No external calls**: flow execution is simulated in-process; set a step's
+  config to `{"fail": true}` to exercise the retry / failed-run path.
+
+---
+
+## Test coverage
+
+- **Server**: 56 xUnit tests — persistence + DateTimeOffset ordering, connector /
+  connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
+  executor unit tests (retry, skip-after-failure, transient recovery), pagination,
+  validation, and ProblemDetails shape.
+- **Client**: 22 Vitest tests — the API wrapper, health/connectors/connections/
+  flows/runs pages, and the pagination component, all with the API layer mocked.
