@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Relay.Api/Relay.Api.csproj" />
+  <Project Path="Relay.Domain/Relay.Domain.csproj" />
+  <Project Path="Relay.Infrastructure/Relay.Infrastructure.csproj" />
+  <Project Path="Relay.Tests/Relay.Tests.csproj" />
+</Solution>
