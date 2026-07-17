@@ -64,6 +64,20 @@ describe('RunsPage', () => {
     expect(within(detailSection).getByText('Message posted to Slack')).toBeInTheDocument();
   });
 
+  it('pages through run history server-side', async () => {
+    const list = vi
+      .spyOn(runsApi, 'listRuns')
+      .mockResolvedValue({ items: [run], page: 1, pageSize: 10, totalCount: 15, totalPages: 2 });
+
+    render(<RunsPage />);
+    await screen.findByText('Notify Slack');
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith('ws1', 2, 10));
+  });
+
   it('retries a run and selects the new run', async () => {
     vi.spyOn(runsApi, 'listRuns').mockResolvedValue(pageOf([run]));
     vi.spyOn(runsApi, 'getRun').mockResolvedValue({ ...detail, id: 'r2' });

@@ -3,6 +3,9 @@ import { useWorkspace } from '../workspace/WorkspaceContext';
 import { useAsync } from '../hooks/useAsync';
 import { getRun, listRuns, retryRun } from '../api/runs';
 import { ApiError } from '../api/client';
+import Pagination from '../components/Pagination';
+
+const PAGE_SIZE = 10;
 
 export default function RunsPage() {
   const { current, status, message } = useWorkspace();
@@ -17,7 +20,8 @@ function fmtDuration(ms: number): string {
 }
 
 function RunsInner({ workspaceId }: { workspaceId: string }) {
-  const runs = useAsync(() => listRuns(workspaceId, 1, 100).then((p) => p.items), [workspaceId]);
+  const [page, setPage] = useState(1);
+  const runs = useAsync(() => listRuns(workspaceId, page, PAGE_SIZE), [workspaceId, page]);
   const [selectedId, setSelectedId] = useState<string>();
   const [error, setError] = useState<string>();
 
@@ -53,7 +57,7 @@ function RunsInner({ workspaceId }: { workspaceId: string }) {
             </tr>
           </thead>
           <tbody>
-            {runs.data.map((r) => (
+            {runs.data.items.map((r) => (
               <tr key={r.id}>
                 <td>{r.flowName}</td>
                 <td>
@@ -72,13 +76,16 @@ function RunsInner({ workspaceId }: { workspaceId: string }) {
                 </td>
               </tr>
             ))}
-            {runs.data.length === 0 && (
+            {runs.data.items.length === 0 && (
               <tr>
                 <td colSpan={6}>No runs yet. Trigger a flow to see history here.</td>
               </tr>
             )}
           </tbody>
         </table>
+      )}
+      {runs.status === 'success' && (
+        <Pagination page={runs.data.page} totalPages={runs.data.totalPages} onPage={setPage} />
       )}
 
       {selectedId && (
