@@ -1,8 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using Relay.Infrastructure;
+using Relay.Infrastructure.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // MVC controllers + RFC 7807 ProblemDetails for error responses.
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+
+// EF Core SQLite persistence.
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Allow the Vite dev/preview client to call the API during development.
 const string ClientCors = "client";
@@ -23,6 +30,16 @@ app.UseStatusCodePages();
 
 app.UseCors(ClientCors);
 app.MapControllers();
+
+// Apply migrations and seed on startup (skipped for the test host, which
+// configures its own database).
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<RelayDbContext>();
+    await db.Database.MigrateAsync();
+    await DatabaseSeeder.SeedAsync(db);
+}
 
 app.Run();
 
