@@ -20,6 +20,7 @@ public class RelayDbContext : DbContext
     public DbSet<Run> Runs => Set<Run>();
     public DbSet<RunStepLog> RunStepLogs => Set<RunStepLog>();
     public DbSet<Webhook> Webhooks => Set<Webhook>();
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -34,6 +35,7 @@ public class RelayDbContext : DbContext
         configurationBuilder.Properties<RunStatus>().HaveConversion<string>().HaveMaxLength(20);
         configurationBuilder.Properties<RunTrigger>().HaveConversion<string>().HaveMaxLength(20);
         configurationBuilder.Properties<WorkspaceRole>().HaveConversion<string>().HaveMaxLength(20);
+        configurationBuilder.Properties<WebhookDeliveryOutcome>().HaveConversion<string>().HaveMaxLength(30);
 
         configurationBuilder.Properties<string>().AreUnicode().HaveMaxLength(1024);
     }
@@ -155,6 +157,7 @@ public class RelayDbContext : DbContext
         {
             e.HasIndex(w => w.Token).IsUnique();
             e.Property(w => w.Token).HasMaxLength(64);
+            e.Property(w => w.SigningSecret).HasMaxLength(12000);
             e.HasOne(w => w.Workspace)
                 .WithMany()
                 .HasForeignKey(w => w.WorkspaceId)
@@ -162,6 +165,16 @@ public class RelayDbContext : DbContext
             e.HasOne(w => w.Flow)
                 .WithMany(f => f.Webhooks)
                 .HasForeignKey(w => w.FlowId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<WebhookDelivery>(e =>
+        {
+            e.Property(d => d.Detail).HasMaxLength(2000);
+            e.HasIndex(d => new { d.WebhookId, d.ReceivedAtUtc });
+            e.HasOne(d => d.Webhook)
+                .WithMany(w => w.Deliveries)
+                .HasForeignKey(d => d.WebhookId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
