@@ -39,6 +39,9 @@ Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
   **write-only** (never returned — only a `hasCredentials` flag), and can be
   **rotated** to a fresh data key.
 - **Flow** — a trigger connection plus an ordered list of steps; enable/disable.
+  Can be created from a **template** (predefined trigger + steps mapped to the
+  workspace's connections) and **exported/imported** as portable JSON — re-import
+  is idempotent via an external id (create vs update), with a dry-run validation.
 - **Run** — one execution: status (`Pending`/`Running`/`Succeeded`/`Failed`),
   duration, retry count, and a `RunStepLog` per step (trigger is step 0). Each
   step carries a **retry policy** (max attempts + backoff); failed runs form the
@@ -81,6 +84,9 @@ mutations require Admin.
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/connections` · `/{id}` | Connection CRUD (config validated against the connector version) |
 | `POST /api/workspaces/{ws}/connections/{id}/rotate-secret` | Re-encrypt the stored secret under a new data key |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows` · `/{id}` | Flow CRUD |
+| `GET /api/flow-templates` · `/{id}` | Template gallery |
+| `POST /api/workspaces/{ws}/flows/from-template/{tid}` | Instantiate a template → draft flow |
+| `GET /api/workspaces/{ws}/flows/{id}/export` · `POST .../import?dryRun=` | Export / idempotent import |
 | `POST /api/workspaces/{ws}/flows/{id}/enable` · `/disable` | Toggle a flow |
 | `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
 | `GET /api/workspaces/{ws}/runs` · `/{runId}` | Run history + detail (`?status=` filter) |
@@ -185,10 +191,12 @@ connectors, connections, flows (list + editor), and runs.
   encrypted-at-rest via the API), webhook hardening (HMAC compute/verify,
   signed/missing/invalid/expired deliveries + classified delivery log), and
   observability (metrics calculator: success rate, nearest-rank p50/p95,
-  zero-filled time series; workspace + per-flow metrics API).
-- **Client**: 43 Vitest tests — the API wrapper, health/connectors/connections/
+  zero-filled time series; workspace + per-flow metrics API), and templates +
+  portability (instantiate, export, idempotent import by external id, dry-run).
+- **Client**: 47 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
   schema-driven connection form, the cron schedule editor, the dead-letter view,
-  secret rotation, webhook signing-secret management + delivery log, and the
-  metrics dashboard (tiles, per-flow table, runs-over-time bars), all with the
-  API layer mocked.
+  secret rotation, webhook signing-secret management + delivery log, the metrics
+  dashboard, and the template gallery + flow export/import, all with the API layer
+  mocked. Files run sequentially (Vitest `fileParallelism: false`) for reliability
+  on the shared machine.

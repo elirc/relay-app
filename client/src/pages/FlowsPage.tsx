@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAsync } from '../hooks/useAsync';
 import { useWorkspace } from '../workspace/WorkspaceContext';
-import { deleteFlow, disableFlow, enableFlow, listFlows } from '../api/flows';
+import { deleteFlow, disableFlow, enableFlow, exportFlow, importFlow, listFlows } from '../api/flows';
+import type { FlowExport, ImportResult } from '../api/flows';
 import { runFlow } from '../api/runs';
 import { ApiError } from '../api/client';
 import { useState } from 'react';
@@ -49,6 +50,18 @@ function FlowsInner({ workspaceId }: { workspaceId: string }) {
     }
   }
 
+  const [exported, setExported] = useState<string>();
+
+  async function doExport(id: string) {
+    setError(undefined);
+    try {
+      const doc = await exportFlow(workspaceId, id);
+      setExported(JSON.stringify(doc, null, 2));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to export flow');
+    }
+  }
+
   return (
     <section>
       <div className="row-between">
@@ -93,6 +106,9 @@ function FlowsInner({ workspaceId }: { workspaceId: string }) {
                   <button type="button" onClick={() => remove(f.id)} aria-label={`Delete ${f.name}`}>
                     Delete
                   </button>
+                  <button type="button" onClick={() => doExport(f.id)} aria-label={`Export ${f.name}`}>
+                    Export
+                  </button>
                 </td>
               </tr>
             ))}
@@ -104,6 +120,111 @@ function FlowsInner({ workspaceId }: { workspaceId: string }) {
           </tbody>
         </table>
       )}
+
+      {exported && (
+        <div className="port-panel">
+          <div className="row-between">
+            <h2>Exported flow (JSON)</h2>
+            <button type="button" onClick={() => setExported(undefined)}>
+              Close
+            </button>
+          </div>
+          <textarea readOnly aria-label="Exported flow JSON" value={exported} rows={12} />
+        </div>
+      )}
+
+      <ImportPanel workspaceId={workspaceId} onImported={() => flows.reload()} />
     </section>
+  );
+}
+
+function ImportPanel({
+  workspaceId,
+  onImported,
+}: {
+  workspaceId: string;
+  onImported: () => void;
+}) {
+  const [text, setText] = useState('');
+  const [result, setResult] = useState<ImportResult>();
+  const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+
+  function parse(): FlowExport | undefined {
+    try {
+      return JSON.parse(text) as FlowExport;
+    } catch {
+      setError('Invalid JSON.');
+      return undefined;
+    }
+  }
+
+  async function validate() {
+    setError(undefined);
+    setResult(undefined);
+    const doc = parse();
+    if (!doc) return;
+    setBusy(true);
+    try {
+      setResult(await importFlow(workspaceId, doc, true));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Validation failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runImport() {
+    setError(undefined);
+    const doc = parse();
+    if (!doc) return;
+    setBusy(true);
+    try {
+      const res = await importFlow(workspaceId, doc, false);
+      setResult(res);
+      if (res.valid) {
+        setText('');
+        onImported();
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Import failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="port-panel">
+      <h2>Import a flow</h2>
+      <p>Paste an exported flow JSON, validate it, then import. Re-importing the same document updates in place.</p>
+      <textarea
+        aria-label="Import flow JSON"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={8}
+        placeholder='{"externalId":"…","name":"…","trigger":{…},"steps":[…]}'
+      />
+      {error && <p role="alert" className="error">{error}</p>}
+      {result && (
+        <div role="status" className={result.valid ? '' : 'error'}>
+          {result.valid ? `Valid — will ${result.action}.` : 'Invalid:'}
+          {result.issues.length > 0 && (
+            <ul>
+              {result.issues.map((i) => (
+                <li key={i}>{i}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <div className="actions">
+        <button type="button" onClick={validate} disabled={busy || !text.trim()}>
+          Validate
+        </button>
+        <button type="button" onClick={runImport} disabled={busy || !result?.valid}>
+          Import
+        </button>
+      </div>
+    </div>
   );
 }
