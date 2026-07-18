@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Relay.Api.Security;
 using Relay.Domain.Entities;
@@ -39,10 +40,12 @@ public sealed class HooksController : ControllerBase
     }
 
     [HttpPost("{token}")]
+    [EnableRateLimiting("triggers")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Trigger(string token, CancellationToken ct)
     {
         var webhook = await _db.Webhooks

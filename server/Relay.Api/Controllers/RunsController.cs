@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Relay.Api.Contracts.Common;
 using Relay.Api.Contracts.Runs;
@@ -24,8 +25,10 @@ public sealed class RunsController : ControllerBase
     }
 
     [HttpPost("flows/{flowId:guid}/run")]
+    [EnableRateLimiting("triggers")]
     [ProducesResponseType(typeof(RunDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<RunDetailDto>> RunFlow(
         Guid workspaceId,
         Guid flowId,

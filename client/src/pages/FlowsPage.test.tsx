@@ -21,6 +21,7 @@ const flow: FlowSummary = {
   triggerConnectionId: 'c1',
   triggerConnectionName: 'Inbound',
   stepCount: 2,
+  concurrencyToken: 'tok-1',
   createdAtUtc: '2026-01-01T00:00:00Z',
   updatedAtUtc: '2026-01-01T00:00:00Z',
 };

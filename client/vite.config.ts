@@ -10,11 +10,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    // On a loaded/shared machine the forks pool can't spin up many workers at
-    // once, so run test files sequentially (one worker spawn at a time) with
+    // On a loaded/shared machine the forks pool can't spin up several workers
+    // at once, so cap to a single worker and run files sequentially, with
     // generous timeouts.
-    testTimeout: 20000,
-    hookTimeout: 20000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    maxWorkers: 1,
     fileParallelism: false,
   },
 });
