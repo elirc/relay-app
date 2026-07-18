@@ -15,6 +15,7 @@ export interface FlowInput {
   description?: string | null;
   triggerConnectionId: string;
   steps: FlowStepInput[];
+  expectedConcurrencyToken?: string;
 }
 
 const base = (workspaceId: string) => `/api/workspaces/${workspaceId}/flows`;

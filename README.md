@@ -72,9 +72,14 @@ and actions needing the **Admin** role return **403** for a **Member**. Reads an
 running/retrying flows are open to any member; connector/connection/flow/webhook
 mutations require Admin.
 
+**Production hardening**: one structured log line per request; **trigger
+endpoints** (manual run + inbound webhook) are **rate-limited** (`429` over the
+limit); flow updates carry an **optimistic-concurrency token** (a stale
+`expectedConcurrencyToken` → **409**); all growable list endpoints are paged.
+
 | Method & path | Purpose |
 | --- | --- |
-| `GET /health` | Liveness probe (anonymous) |
+| `GET /health` | Liveness + readiness probe with a DB check, `200`/`503` (anonymous) |
 | `POST /api/auth/login` | Password login → `{ token, expiresAtUtc, user }` |
 | `GET /api/auth/me` | Current authenticated user |
 | `GET /api/workspaces` · `/{id}` | Workspace directory (scoped to caller) |
@@ -179,7 +184,7 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 138 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 175 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
   validation, ProblemDetails shape, the auth denial matrix (401 / 403 / 404, role
@@ -191,8 +196,10 @@ connectors, connections, flows (list + editor), and runs.
   encrypted-at-rest via the API), webhook hardening (HMAC compute/verify,
   signed/missing/invalid/expired deliveries + classified delivery log), and
   observability (metrics calculator: success rate, nearest-rank p50/p95,
-  zero-filled time series; workspace + per-flow metrics API), and templates +
-  portability (instantiate, export, idempotent import by external id, dry-run).
+  zero-filled time series; workspace + per-flow metrics API), templates +
+  portability (instantiate, export, idempotent import by external id, dry-run),
+  and production readiness (health DB probe, optimistic-concurrency 409, trigger
+  rate-limit 429, pagination audit).
 - **Client**: 47 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
   schema-driven connection form, the cron schedule editor, the dead-letter view,

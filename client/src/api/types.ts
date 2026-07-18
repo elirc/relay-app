@@ -79,6 +79,7 @@ export interface FlowSummary {
   triggerConnectionId: string;
   triggerConnectionName: string;
   stepCount: number;
+  concurrencyToken: string;
   createdAtUtc: string;
   updatedAtUtc: string;
 }
@@ -92,6 +93,7 @@ export interface FlowDetail {
   triggerConnectionId: string;
   triggerConnectionName: string;
   steps: FlowStep[];
+  concurrencyToken: string;
   createdAtUtc: string;
   updatedAtUtc: string;
 }

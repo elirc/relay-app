@@ -38,6 +38,16 @@ export default function HealthPage() {
           <dd data-testid="health-status">{state.data.status}</dd>
           <dt>Service</dt>
           <dd>{state.data.service}</dd>
+          <dt>Version</dt>
+          <dd>{state.data.version}</dd>
+          <dt>Database</dt>
+          <dd data-testid="health-database">
+            <span
+              className={`badge ${state.data.checks.database === 'ok' ? 'status-succeeded' : 'status-failed'}`}
+            >
+              {state.data.checks.database}
+            </span>
+          </dd>
           <dt>Timestamp (UTC)</dt>
           <dd>{state.data.timestampUtc}</dd>
         </dl>

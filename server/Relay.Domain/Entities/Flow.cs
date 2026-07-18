@@ -23,6 +23,9 @@ public class Flow
 
     public bool IsEnabled { get; set; }
 
+    /// <summary>Optimistic-concurrency token, rotated on each edit to detect racing updates.</summary>
+    public Guid ConcurrencyToken { get; set; } = Guid.NewGuid();
+
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 

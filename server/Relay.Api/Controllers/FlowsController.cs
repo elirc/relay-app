@@ -89,6 +89,7 @@ public sealed class FlowsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<FlowDetailDto>> Update(
         Guid workspaceId,
         Guid id,
@@ -97,27 +98,46 @@ public sealed class FlowsController : ControllerBase
     {
         var flow = await _db.Flows.FirstOrDefaultAsync(f => f.Id == id && f.WorkspaceId == workspaceId, ct);
         if (flow is null) return FlowNotFound(id);
+
+        // Optimistic concurrency: reject a stale edit before doing any work.
+        if (request.ExpectedConcurrencyToken is { } expected && expected != flow.ConcurrencyToken)
+            return ConcurrencyConflict(id);
+
         if (!await ValidateGraphAsync(workspaceId, request.TriggerConnectionId!.Value, request.Steps!, ct))
             return ValidationProblem(ModelState);
 
         flow.Name = request.Name!.Trim();
         flow.Description = request.Description?.Trim();
         flow.TriggerConnectionId = request.TriggerConnectionId!.Value;
+        flow.ConcurrencyToken = Guid.NewGuid();
         flow.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         // Replace the ordered step list wholesale. Delete the old rows first (a
         // direct DELETE that bypasses the change tracker), then insert the new
         // ones — in one transaction — so the unique (FlowId, Order) index never
         // sees two rows share an order mid-save.
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
-        await _db.FlowSteps.Where(s => s.FlowId == id).ExecuteDeleteAsync(ct);
-        _db.FlowSteps.AddRange(BuildSteps(request.Steps!, id));
-        await _db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            await _db.FlowSteps.Where(s => s.FlowId == id).ExecuteDeleteAsync(ct);
+            _db.FlowSteps.AddRange(BuildSteps(request.Steps!, id));
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A concurrent writer beat us between load and save.
+            return ConcurrencyConflict(id);
+        }
 
         var updated = await LoadFlow(workspaceId, id, tracking: false, ct);
         return Ok(FlowDetailDto.From(updated!));
     }
+
+    private ObjectResult ConcurrencyConflict(Guid id) => Problem(
+        title: "Flow was modified",
+        detail: $"Flow '{id}' changed since you loaded it. Reload and retry.",
+        statusCode: StatusCodes.Status409Conflict);
 
     [HttpPost("{id:guid}/enable")]
     [RequireWorkspaceRole(WorkspaceRole.Admin)]

@@ -109,6 +109,7 @@ public class RelayDbContext : DbContext
         {
             e.Property(f => f.Description).HasMaxLength(2000);
             e.Property(f => f.ExternalId).HasMaxLength(200);
+            e.Property(f => f.ConcurrencyToken).IsConcurrencyToken();
             e.HasIndex(f => new { f.WorkspaceId, f.Name });
             // Unique per workspace among non-null external ids (idempotent import).
             e.HasIndex(f => new { f.WorkspaceId, f.ExternalId }).IsUnique();

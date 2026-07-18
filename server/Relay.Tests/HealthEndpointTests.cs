@@ -32,4 +32,15 @@ public sealed class HealthEndpointTests : IClassFixture<RelayApiFactory>
         Assert.Equal("ok", body!.Status);
         Assert.Equal("relay-api", body.Service);
     }
+
+    [Fact]
+    public async Task Get_Health_IncludesDatabaseProbe_AndVersion()
+    {
+        var client = _factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<HealthResponse>("/health");
+
+        Assert.Equal("ok", body!.Checks.Database);
+        Assert.False(string.IsNullOrWhiteSpace(body.Version));
+    }
 }

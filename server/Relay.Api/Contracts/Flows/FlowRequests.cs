@@ -54,4 +54,7 @@ public sealed record UpdateFlowRequest(
 
     [Required]
     [MinLength(1, ErrorMessage = "A flow needs at least one action step.")]
-    List<FlowStepInput>? Steps);
+    List<FlowStepInput>? Steps,
+
+    /// <summary>Optimistic-concurrency guard: the token the client last read. A mismatch → 409.</summary>
+    Guid? ExpectedConcurrencyToken = null);

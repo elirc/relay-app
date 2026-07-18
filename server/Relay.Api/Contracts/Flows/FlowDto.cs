@@ -12,6 +12,7 @@ public sealed record FlowSummaryDto(
     Guid TriggerConnectionId,
     string TriggerConnectionName,
     int StepCount,
+    Guid ConcurrencyToken,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc)
 {
@@ -25,6 +26,7 @@ public sealed record FlowSummaryDto(
             f.TriggerConnectionId,
             f.TriggerConnection?.Name ?? string.Empty,
             f.Steps.Count,
+            f.ConcurrencyToken,
             f.CreatedAtUtc,
             f.UpdatedAtUtc);
 }
@@ -39,6 +41,7 @@ public sealed record FlowDetailDto(
     Guid TriggerConnectionId,
     string TriggerConnectionName,
     IReadOnlyList<FlowStepDto> Steps,
+    Guid ConcurrencyToken,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc)
 {
@@ -52,6 +55,7 @@ public sealed record FlowDetailDto(
             f.TriggerConnectionId,
             f.TriggerConnection?.Name ?? string.Empty,
             f.Steps.OrderBy(s => s.Order).Select(FlowStepDto.From).ToList(),
+            f.ConcurrencyToken,
             f.CreatedAtUtc,
             f.UpdatedAtUtc);
 }

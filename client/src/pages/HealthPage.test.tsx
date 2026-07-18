@@ -9,10 +9,12 @@ describe('HealthPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the API status once the health call resolves', async () => {
+  it('renders the API status and DB probe once the health call resolves', async () => {
     vi.spyOn(healthApi, 'getHealth').mockResolvedValue({
       status: 'ok',
       service: 'relay-api',
+      version: '2.0.0',
+      checks: { database: 'ok' },
       timestampUtc: '2026-01-01T00:00:00Z',
     });
 
@@ -20,6 +22,7 @@ describe('HealthPage', () => {
 
     expect(await screen.findByTestId('health-status')).toHaveTextContent('ok');
     expect(screen.getByText('relay-api')).toBeInTheDocument();
+    expect(screen.getByTestId('health-database')).toHaveTextContent('ok');
   });
 
   it('shows an error message when the API is unreachable', async () => {

@@ -45,6 +45,7 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
   const [description, setDescription] = useState('');
   const [triggerConnectionId, setTriggerConnectionId] = useState('');
   const [steps, setSteps] = useState<FlowStepInput[]>([{ ...emptyStep }]);
+  const [concurrencyToken, setConcurrencyToken] = useState<string>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -56,6 +57,7 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
     setName(f.name);
     setDescription(f.description ?? '');
     setTriggerConnectionId(f.triggerConnectionId);
+    setConcurrencyToken(f.concurrencyToken);
     setSteps(
       f.steps.map((s) => ({
         name: s.name,
@@ -95,7 +97,13 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
     e.preventDefault();
     setBusy(true);
     setError(undefined);
-    const input: FlowInput = { name, description: description || null, triggerConnectionId, steps };
+    const input: FlowInput = {
+      name,
+      description: description || null,
+      triggerConnectionId,
+      steps,
+      expectedConcurrencyToken: concurrencyToken,
+    };
     try {
       if (isEdit && flowId) {
         await updateFlow(workspaceId, flowId, input);
@@ -104,7 +112,11 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
       }
       navigate('/flows');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to save flow');
+      if (err instanceof ApiError && err.status === 409) {
+        setError('This flow was changed elsewhere. Reload the page and reapply your edits.');
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Failed to save flow');
+      }
     } finally {
       setBusy(false);
     }
