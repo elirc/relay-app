@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DeadLetterPage from './DeadLetterPage';
 import * as runsApi from '../api/runs';
+import { ApiError } from '../api/client';
 import type { RunSummary, Workspace } from '../api/types';
 
 const workspace: Workspace = { id: 'ws1', name: 'Acme', slug: 'acme', createdAtUtc: '2026-01-01T00:00:00Z' };
@@ -53,5 +54,29 @@ describe('DeadLetterPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /^replay notify slack$/i }));
 
     await waitFor(() => expect(replay).toHaveBeenCalledWith('ws1', 'r1', 1));
+  });
+
+  it('shows a confirmation notice after a successful replay', async () => {
+    vi.spyOn(runsApi, 'listDeadLetter').mockResolvedValue(page([failed]));
+    vi.spyOn(runsApi, 'replayRun').mockResolvedValue(
+      { ...failed, id: 'r2', status: 'Succeeded', stepLogs: [] } as never,
+    );
+
+    render(<DeadLetterPage />);
+    await screen.findByText('Notify Slack');
+    await userEvent.click(screen.getByRole('button', { name: /^replay notify slack$/i }));
+
+    expect(await screen.findByText(/replayed as run r2 \(succeeded\)/i)).toBeInTheDocument();
+  });
+
+  it('surfaces an error when the replay request fails', async () => {
+    vi.spyOn(runsApi, 'listDeadLetter').mockResolvedValue(page([failed]));
+    vi.spyOn(runsApi, 'replayRun').mockRejectedValue(new ApiError(404, 'Run not found'));
+
+    render(<DeadLetterPage />);
+    await screen.findByText('Notify Slack');
+    await userEvent.click(screen.getByRole('button', { name: /^replay notify slack$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Run not found');
   });
 });

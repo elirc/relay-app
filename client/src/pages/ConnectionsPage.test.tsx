@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import ConnectionsPage from './ConnectionsPage';
 import * as connectionsApi from '../api/connections';
 import * as connectorsApi from '../api/connectors';
+import { ApiError } from '../api/client';
 import type { Connection, Connector, Workspace } from '../api/types';
 
 const workspace: Workspace = {
@@ -135,5 +136,53 @@ describe('ConnectionsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /rotate secret for acme #alerts/i }));
 
     await waitFor(() => expect(rotate).toHaveBeenCalledWith('ws1', 'x1'));
+  });
+
+  it('surfaces the server validation error from a schema-invalid config', async () => {
+    const schemaConnector: Connector = {
+      ...connector,
+      id: 'con3',
+      configSchemaJson:
+        '{"type":"object","properties":{"channel":{"type":"string"}},"required":["channel"]}',
+      latestVersion: 1,
+    };
+    vi.spyOn(connectorsApi, 'listConnectors').mockResolvedValue(page([schemaConnector]));
+    vi.spyOn(connectionsApi, 'listConnections').mockResolvedValue(page([]));
+    // The required schema field is marked required in the DOM (client-side guard).
+    const create = vi
+      .spyOn(connectionsApi, 'createConnection')
+      .mockRejectedValue(new ApiError(400, 'Config does not match the connector schema.'));
+
+    render(<ConnectionsPage />);
+    await screen.findByText('No connections yet.');
+
+    await userEvent.selectOptions(screen.getByLabelText('Connector'), 'con3');
+    await userEvent.type(screen.getByLabelText('Name'), 'Alerts');
+    const channel = screen.getByLabelText(/channel/i);
+    expect(channel).toBeRequired();
+    await userEvent.type(channel, '#ops');
+    await userEvent.click(screen.getByRole('button', { name: /install connection/i }));
+
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(await screen.findByRole('alert')).toHaveTextContent(/does not match the connector schema/i);
+  });
+
+  it('renders the secret field masked and never displays a credential value', async () => {
+    vi.spyOn(connectionsApi, 'listConnections').mockResolvedValue(page([connection]));
+
+    render(<ConnectionsPage />);
+    await screen.findByText('Acme #alerts');
+
+    // The input is a masked password field that never round-trips a stored value.
+    const secret = screen.getByLabelText(/secret \(json/i) as HTMLInputElement;
+    expect(secret).toHaveAttribute('type', 'password');
+    expect(secret).toHaveValue('');
+    expect(secret).toHaveAttribute('autocomplete', 'off');
+
+    // Connections with credentials show presence ("set"), not the secret itself.
+    expect(screen.getByText('set')).toBeInTheDocument();
+    await userEvent.type(secret, 'sk-live-typed');
+    // A typed value stays in the masked input; nothing leaks into rendered text.
+    expect(document.body.textContent).not.toContain('sk-live-typed');
   });
 });

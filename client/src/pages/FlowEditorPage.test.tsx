@@ -5,7 +5,10 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import FlowEditorPage from './FlowEditorPage';
 import * as connectionsApi from '../api/connections';
 import * as flowsApi from '../api/flows';
-import type { Connection, Workspace } from '../api/types';
+import * as schedulesApi from '../api/schedules';
+import * as webhooksApi from '../api/webhooks';
+import { ApiError } from '../api/client';
+import type { Connection, FlowDetail, Workspace } from '../api/types';
 
 const workspace: Workspace = { id: 'ws1', name: 'Acme', slug: 'acme', createdAtUtc: '2026-01-01T00:00:00Z' };
 
@@ -89,5 +92,88 @@ describe('FlowEditorPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /remove step 2/i }));
     expect(screen.getAllByRole('group')).toHaveLength(1);
+  });
+});
+
+const flowDetail: FlowDetail = {
+  id: 'f1',
+  workspaceId: 'ws1',
+  name: 'Editable flow',
+  description: 'desc',
+  isEnabled: false,
+  triggerConnectionId: 'c1',
+  triggerConnectionName: 'Inbound',
+  concurrencyToken: 'token-v1',
+  steps: [
+    {
+      id: 's1',
+      order: 0,
+      name: 'Post',
+      connectionId: 'c2',
+      connectionName: 'Slack',
+      action: 'send_message',
+      configJson: '{}',
+      maxAttempts: 3,
+      backoffSeconds: 0,
+    },
+  ],
+  createdAtUtc: '2026-01-01T00:00:00Z',
+  updatedAtUtc: '2026-01-01T00:00:00Z',
+};
+
+function renderEdit() {
+  return render(
+    <MemoryRouter initialEntries={['/flows/f1']}>
+      <Routes>
+        <Route path="/flows/:id" element={<FlowEditorPage />} />
+        <Route path="/flows" element={<div>Flows list</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe('FlowEditorPage — optimistic concurrency', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(connectionsApi, 'listConnections').mockResolvedValue(
+      pageOf([conn('c1', 'Inbound'), conn('c2', 'Slack')]),
+    );
+    vi.spyOn(flowsApi, 'getFlow').mockResolvedValue(flowDetail);
+    // The edit view mounts schedule/webhook sections; keep them quiet.
+    vi.spyOn(schedulesApi, 'listSchedules').mockResolvedValue([]);
+    vi.spyOn(webhooksApi, 'listWebhooks').mockResolvedValue([]);
+  });
+
+  it('surfaces the "changed elsewhere" message on a 409 and sends the loaded token', async () => {
+    const update = vi
+      .spyOn(flowsApi, 'updateFlow')
+      .mockRejectedValue(new ApiError(409, 'Flow was modified'));
+
+    renderEdit();
+    // Populated from the loaded flow.
+    await waitFor(() => expect(screen.getByDisplayValue('Editable flow')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    // The 409 branch renders the reconciliation guidance, not the raw message.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/changed elsewhere/i);
+
+    // The update carried the concurrency token the client last read.
+    expect(update).toHaveBeenCalledWith(
+      'ws1',
+      'f1',
+      expect.objectContaining({ expectedConcurrencyToken: 'token-v1' }),
+    );
+  });
+
+  it('navigates back to the list on a successful save', async () => {
+    vi.spyOn(flowsApi, 'updateFlow').mockResolvedValue(flowDetail);
+
+    renderEdit();
+    await waitFor(() => expect(screen.getByDisplayValue('Editable flow')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(await screen.findByText('Flows list')).toBeInTheDocument();
   });
 });
