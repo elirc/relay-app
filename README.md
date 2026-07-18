@@ -85,6 +85,7 @@ mutations require Admin.
 | `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
 | `GET /api/workspaces/{ws}/runs` · `/{runId}` | Run history + detail (`?status=` filter) |
 | `GET /api/workspaces/{ws}/dead-letter` | Failed runs (dead-letter list) |
+| `GET /api/workspaces/{ws}/metrics` · `/flows/{id}/metrics` | Run metrics (success rate, p50/p95, runs over time) |
 | `POST /api/workspaces/{ws}/runs/{runId}/retry` | Re-run with the original payload |
 | `POST /api/workspaces/{ws}/runs/{runId}/replay` | Replay, skipping steps before `fromStepOrder` |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows/{id}/schedules` · `/{sid}` | Cron schedules |
@@ -181,10 +182,13 @@ connectors, connections, flows (list + editor), and runs.
   schedule API + preview), retries/dead-letter (per-step attempts + backoff over a
   fake delayer, replay-from-step, dead-letter list, webhook idempotency), and
   secret protection (envelope round-trip over a fake KMS, rotation, write-only +
-  encrypted-at-rest via the API), and webhook hardening (HMAC compute/verify,
-  signed/missing/invalid/expired deliveries + classified delivery log).
-- **Client**: 41 Vitest tests — the API wrapper, health/connectors/connections/
+  encrypted-at-rest via the API), webhook hardening (HMAC compute/verify,
+  signed/missing/invalid/expired deliveries + classified delivery log), and
+  observability (metrics calculator: success rate, nearest-rank p50/p95,
+  zero-filled time series; workspace + per-flow metrics API).
+- **Client**: 43 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
   schema-driven connection form, the cron schedule editor, the dead-letter view,
-  secret rotation, and webhook signing-secret management + delivery log, all with
-  the API layer mocked.
+  secret rotation, webhook signing-secret management + delivery log, and the
+  metrics dashboard (tiles, per-flow table, runs-over-time bars), all with the
+  API layer mocked.

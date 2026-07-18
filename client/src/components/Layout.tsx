@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 
 const nav: { to: string; label: string }[] = [
   { to: '/', label: 'Home' },
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/connectors', label: 'Connectors' },
   { to: '/connections', label: 'Connections' },
   { to: '/flows', label: 'Flows' },

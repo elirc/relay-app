@@ -261,6 +261,80 @@ code {
   margin-top: 1rem;
 }
 
+.stat-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.stat-tile {
+  flex: 1 1 120px;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: #0b1220;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+
+.stat-label {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+.runs-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-width: 640px;
+  margin-bottom: 1.5rem;
+}
+
+.runs-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.runs-date {
+  width: 3rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.runs-bar {
+  flex: 1;
+  display: flex;
+  height: 14px;
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.runs-bar-ok {
+  background: #22c55e;
+}
+
+.runs-bar-fail {
+  background: #ef4444;
+}
+
+.runs-count {
+  width: 2rem;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .pagination {
   display: flex;
   align-items: center;
