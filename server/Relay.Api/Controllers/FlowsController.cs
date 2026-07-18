@@ -205,6 +205,8 @@ public sealed class FlowsController : ControllerBase
             ConnectionId = s.ConnectionId!.Value,
             Action = s.Action!.Trim(),
             ConfigJson = string.IsNullOrWhiteSpace(s.ConfigJson) ? "{}" : s.ConfigJson,
+            MaxAttempts = Math.Clamp(s.MaxAttempts ?? 3, 1, 10),
+            BackoffSeconds = Math.Clamp(s.BackoffSeconds ?? 0, 0, 3600),
         }).ToList();
 
     private async Task<Flow?> LoadFlow(Guid workspaceId, Guid id, bool tracking, CancellationToken ct)

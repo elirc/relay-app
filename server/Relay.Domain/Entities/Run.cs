@@ -16,6 +16,12 @@ public class Run
     /// <summary>Optional JSON payload that started the run (e.g. webhook body).</summary>
     public string? TriggerPayloadJson { get; set; }
 
+    /// <summary>
+    /// Optional de-duplication key (from a webhook's Idempotency-Key header).
+    /// Unique per flow among non-null values.
+    /// </summary>
+    public string? IdempotencyKey { get; set; }
+
     public DateTimeOffset StartedAtUtc { get; set; }
     public DateTimeOffset? CompletedAtUtc { get; set; }
     public long DurationMs { get; set; }

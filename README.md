@@ -38,7 +38,10 @@ Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
   `hasCredentials` flag).
 - **Flow** — a trigger connection plus an ordered list of steps; enable/disable.
 - **Run** — one execution: status (`Pending`/`Running`/`Succeeded`/`Failed`),
-  duration, retry count, and a `RunStepLog` per step (trigger is step 0).
+  duration, retry count, and a `RunStepLog` per step (trigger is step 0). Each
+  step carries a **retry policy** (max attempts + backoff); failed runs form the
+  **dead-letter** list and can be **replayed** from a chosen step. Webhook runs
+  can carry an idempotency key so duplicate deliveries reuse the same run.
 - **Webhook** — a tokenized URL; `POST` to it triggers the flow.
 - **Schedule** — a cron-style trigger for a flow. An in-process scheduler (over a
   clock port, fakeable in tests) runs due schedules through the same executor and
@@ -72,13 +75,15 @@ mutations require Admin.
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows` · `/{id}` | Flow CRUD |
 | `POST /api/workspaces/{ws}/flows/{id}/enable` · `/disable` | Toggle a flow |
 | `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
-| `GET /api/workspaces/{ws}/runs` · `/{runId}` | Run history + detail |
+| `GET /api/workspaces/{ws}/runs` · `/{runId}` | Run history + detail (`?status=` filter) |
+| `GET /api/workspaces/{ws}/dead-letter` | Failed runs (dead-letter list) |
 | `POST /api/workspaces/{ws}/runs/{runId}/retry` | Re-run with the original payload |
+| `POST /api/workspaces/{ws}/runs/{runId}/replay` | Replay, skipping steps before `fromStepOrder` |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows/{id}/schedules` · `/{sid}` | Cron schedules |
 | `POST /api/workspaces/{ws}/flows/{id}/schedules/{sid}/enable` · `/disable` | Toggle a schedule |
 | `GET /api/workspaces/{ws}/flows/{id}/schedules/preview?cron=` | Validate + preview next runs |
 | `GET/POST/DELETE /api/workspaces/{ws}/flows/{id}/webhooks` | Manage webhooks |
-| `POST /api/hooks/{token}` | Public inbound webhook trigger |
+| `POST /api/hooks/{token}` | Public inbound webhook trigger (`Idempotency-Key` header de-dupes) |
 
 ---
 
@@ -157,14 +162,15 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 115 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 127 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
   validation, ProblemDetails shape, the auth denial matrix (401 / 403 / 404, role
   gating, foreign-workspace isolation), connector versioning + JSON-schema config
-  validation, and scheduling (cron parsing/next-run, dispatcher over a fake clock,
-  schedule API + preview).
-- **Client**: 35 Vitest tests — the API wrapper, health/connectors/connections/
+  validation, scheduling (cron parsing/next-run, dispatcher over a fake clock,
+  schedule API + preview), and retries/dead-letter (per-step attempts + backoff
+  over a fake delayer, replay-from-step, dead-letter list, webhook idempotency).
+- **Client**: 37 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
-  schema-driven connection form, and the cron schedule editor (live preview +
-  create), all with the API layer mocked.
+  schema-driven connection form, the cron schedule editor, and the dead-letter
+  view (list + replay-from-step), all with the API layer mocked.

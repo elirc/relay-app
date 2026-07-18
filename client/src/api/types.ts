@@ -66,6 +66,8 @@ export interface FlowStep {
   connectionName: string;
   action: string;
   configJson: string;
+  maxAttempts: number;
+  backoffSeconds: number;
 }
 
 export interface FlowSummary {
@@ -120,6 +122,7 @@ export interface RunSummary {
 export interface RunDetail extends RunSummary {
   error?: string | null;
   triggerPayloadJson?: string | null;
+  idempotencyKey?: string | null;
   stepLogs: RunStepLog[];
 }
 

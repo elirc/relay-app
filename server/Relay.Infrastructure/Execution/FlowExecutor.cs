@@ -14,22 +14,27 @@ namespace Relay.Infrastructure.Execution;
 /// </summary>
 public sealed class FlowExecutor : IFlowExecutor
 {
+    /// <summary>Default max attempts when a step doesn't specify a positive value.</summary>
     public const int MaxAttempts = 3;
 
     private readonly RelayDbContext _db;
     private readonly IActionDispatcher _dispatcher;
+    private readonly IDelayer _delayer;
 
-    public FlowExecutor(RelayDbContext db, IActionDispatcher dispatcher)
+    public FlowExecutor(RelayDbContext db, IActionDispatcher dispatcher, IDelayer? delayer = null)
     {
         _db = db;
         _dispatcher = dispatcher;
+        _delayer = delayer ?? new ImmediateDelayer();
     }
 
     public async Task<Run?> RunFlowAsync(
         Guid flowId,
         RunTrigger trigger,
         string? payloadJson,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        int fromStepOrder = 0,
+        string? idempotencyKey = null)
     {
         var flow = await _db.Flows
             .Include(f => f.TriggerConnection)
@@ -45,6 +50,7 @@ public sealed class FlowExecutor : IFlowExecutor
             Status = RunStatus.Running,
             Trigger = trigger,
             TriggerPayloadJson = payloadJson,
+            IdempotencyKey = idempotencyKey,
             StartedAtUtc = startedAt,
         };
         _db.Runs.Add(run);
@@ -69,6 +75,22 @@ public sealed class FlowExecutor : IFlowExecutor
         {
             var order = step.Order + 1;
 
+            // Replay: steps before the replay point are skipped (assumed already done).
+            if (step.Order < fromStepOrder)
+            {
+                run.StepLogs.Add(new RunStepLog
+                {
+                    Id = Guid.NewGuid(),
+                    FlowStepId = step.Id,
+                    StepOrder = order,
+                    Name = step.Name,
+                    Status = RunStatus.Skipped,
+                    Message = $"Skipped (replay from step {fromStepOrder}).",
+                    StartedAtUtc = DateTimeOffset.UtcNow,
+                });
+                continue;
+            }
+
             if (failed)
             {
                 run.StepLogs.Add(new RunStepLog
@@ -92,6 +114,7 @@ public sealed class FlowExecutor : IFlowExecutor
                 step.Connection?.ConfigJson ?? "{}",
                 payloadJson);
 
+            var maxAttempts = step.MaxAttempts > 0 ? step.MaxAttempts : MaxAttempts;
             StepExecutionResult result = StepExecutionResult.Fail("Not executed");
             var attempts = 0;
             while (true)
@@ -106,7 +129,13 @@ public sealed class FlowExecutor : IFlowExecutor
                     result = StepExecutionResult.Fail(ex.Message);
                 }
 
-                if (result.Success || attempts >= MaxAttempts) break;
+                if (result.Success || attempts >= maxAttempts) break;
+
+                // Backoff between attempts (instant under a fake delayer in tests).
+                if (step.BackoffSeconds > 0)
+                {
+                    await _delayer.DelayAsync(TimeSpan.FromSeconds(step.BackoffSeconds), ct);
+                }
             }
             totalRetries += attempts - 1;
 

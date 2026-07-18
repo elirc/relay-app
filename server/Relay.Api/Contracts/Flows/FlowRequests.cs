@@ -16,7 +16,15 @@ public sealed record FlowStepInput(
     string? Action,
 
     [StringLength(8000)]
-    string? ConfigJson);
+    string? ConfigJson,
+
+    /// <summary>Retry policy: max attempts (1-10, default 3).</summary>
+    [Range(1, 10)]
+    int? MaxAttempts = null,
+
+    /// <summary>Retry policy: fixed backoff seconds between attempts (0-3600, default 0).</summary>
+    [Range(0, 3600)]
+    int? BackoffSeconds = null);
 
 public sealed record CreateFlowRequest(
     [Required]

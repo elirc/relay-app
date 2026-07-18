@@ -28,3 +28,21 @@ export function getRun(workspaceId: string, runId: string): Promise<RunDetail> {
 export function retryRun(workspaceId: string, runId: string): Promise<RunDetail> {
   return api.post<RunDetail>(`${wsBase(workspaceId)}/runs/${runId}/retry`, {});
 }
+
+export function replayRun(
+  workspaceId: string,
+  runId: string,
+  fromStepOrder = 0,
+): Promise<RunDetail> {
+  return api.post<RunDetail>(`${wsBase(workspaceId)}/runs/${runId}/replay`, { fromStepOrder });
+}
+
+export function listDeadLetter(
+  workspaceId: string,
+  page = 1,
+  pageSize = 50,
+): Promise<PagedResult<RunSummary>> {
+  return api.get<PagedResult<RunSummary>>(
+    `${wsBase(workspaceId)}/dead-letter?page=${page}&pageSize=${pageSize}`,
+  );
+}

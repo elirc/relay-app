@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Relay.Domain.Entities;
 using Relay.Domain.Enums;
 
@@ -41,6 +42,7 @@ public sealed record RunDetailDto(
     RunTrigger Trigger,
     string? Error,
     string? TriggerPayloadJson,
+    string? IdempotencyKey,
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? CompletedAtUtc,
     long DurationMs,
@@ -49,9 +51,12 @@ public sealed record RunDetailDto(
 {
     public static RunDetailDto From(Run r) =>
         new(r.Id, r.FlowId, r.Flow?.Name ?? string.Empty, r.Status, r.Trigger, r.Error,
-            r.TriggerPayloadJson, r.StartedAtUtc, r.CompletedAtUtc, r.DurationMs, r.RetryCount,
+            r.TriggerPayloadJson, r.IdempotencyKey, r.StartedAtUtc, r.CompletedAtUtc, r.DurationMs, r.RetryCount,
             r.StepLogs.OrderBy(l => l.StepOrder).Select(RunStepLogDto.From).ToList());
 }
 
 /// <summary>Optional payload for a manual run.</summary>
 public sealed record TriggerRunRequest(string? PayloadJson);
+
+/// <summary>Replay a run, optionally skipping the action steps before <c>FromStepOrder</c>.</summary>
+public sealed record ReplayRunRequest([Range(0, 1000)] int? FromStepOrder);

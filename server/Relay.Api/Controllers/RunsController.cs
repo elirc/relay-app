@@ -46,6 +46,31 @@ public sealed class RunsController : ControllerBase
     public async Task<ActionResult<PagedResult<RunSummaryDto>>> ListRuns(
         Guid workspaceId,
         [FromQuery] PaginationQuery pagination,
+        [FromQuery] RunStatus? status,
+        CancellationToken ct)
+    {
+        if (!await _db.Workspaces.AnyAsync(w => w.Id == workspaceId, ct))
+            return NotFoundProblem("Workspace", workspaceId);
+
+        var query = _db.Runs
+            .AsNoTracking()
+            .Include(r => r.Flow)
+            .Where(r => r.Flow!.WorkspaceId == workspaceId);
+        if (status is not null) query = query.Where(r => r.Status == status);
+
+        var result = await query
+            .OrderByDescending(r => r.StartedAtUtc)
+            .ToPagedResultAsync(pagination, RunSummaryDto.From, ct);
+        return Ok(result);
+    }
+
+    /// <summary>The dead-letter list: failed runs for the workspace, newest first.</summary>
+    [HttpGet("dead-letter")]
+    [ProducesResponseType(typeof(PagedResult<RunSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<RunSummaryDto>>> DeadLetter(
+        Guid workspaceId,
+        [FromQuery] PaginationQuery pagination,
         CancellationToken ct)
     {
         if (!await _db.Workspaces.AnyAsync(w => w.Id == workspaceId, ct))
@@ -54,7 +79,7 @@ public sealed class RunsController : ControllerBase
         var result = await _db.Runs
             .AsNoTracking()
             .Include(r => r.Flow)
-            .Where(r => r.Flow!.WorkspaceId == workspaceId)
+            .Where(r => r.Flow!.WorkspaceId == workspaceId && r.Status == RunStatus.Failed)
             .OrderByDescending(r => r.StartedAtUtc)
             .ToPagedResultAsync(pagination, RunSummaryDto.From, ct);
         return Ok(result);
@@ -81,6 +106,26 @@ public sealed class RunsController : ControllerBase
         if (original is null) return NotFoundProblem("Run", runId);
 
         var run = await _executor.RunFlowAsync(original.FlowId, RunTrigger.Manual, original.TriggerPayloadJson, ct);
+        var detail = await LoadDetail(run!.Id, workspaceId, ct);
+        return CreatedAtAction(nameof(GetRun), new { workspaceId, runId = run.Id }, detail);
+    }
+
+    /// <summary>Replays a run, skipping the action steps before <c>FromStepOrder</c>.</summary>
+    [HttpPost("runs/{runId:guid}/replay")]
+    [ProducesResponseType(typeof(RunDetailDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<RunDetailDto>> Replay(
+        Guid workspaceId, Guid runId, ReplayRunRequest? request, CancellationToken ct)
+    {
+        var original = await _db.Runs
+            .AsNoTracking()
+            .Include(r => r.Flow)
+            .FirstOrDefaultAsync(r => r.Id == runId && r.Flow!.WorkspaceId == workspaceId, ct);
+        if (original is null) return NotFoundProblem("Run", runId);
+
+        var fromStep = Math.Max(0, request?.FromStepOrder ?? 0);
+        var run = await _executor.RunFlowAsync(
+            original.FlowId, RunTrigger.Manual, original.TriggerPayloadJson, ct, fromStepOrder: fromStep);
         var detail = await LoadDetail(run!.Id, workspaceId, ct);
         return CreatedAtAction(nameof(GetRun), new { workspaceId, runId = run.Id }, detail);
     }

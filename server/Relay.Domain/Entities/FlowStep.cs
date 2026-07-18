@@ -22,4 +22,10 @@ public class FlowStep
 
     /// <summary>Per-step configuration as a JSON object.</summary>
     public string ConfigJson { get; set; } = "{}";
+
+    /// <summary>Retry policy: max attempts for this step (>= 1).</summary>
+    public int MaxAttempts { get; set; } = 3;
+
+    /// <summary>Retry policy: fixed backoff between attempts, in seconds (0 = none).</summary>
+    public int BackoffSeconds { get; set; }
 }
