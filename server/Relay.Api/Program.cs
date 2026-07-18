@@ -53,8 +53,15 @@ builder.Services.AddProblemDetails(options =>
             System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
     });
 
-// EF Core SQLite persistence.
+// EF Core SQLite persistence + scheduling services.
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// The background scheduler ticks only in the real app; the test host drives the
+// ScheduleDispatcher deterministically with a fake clock instead.
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<Relay.Api.Scheduling.ScheduleHostedService>();
+}
 
 // Allow the Vite dev/preview client to call the API during development.
 const string ClientCors = "client";

@@ -132,3 +132,14 @@ export interface Webhook {
   createdAtUtc: string;
   lastTriggeredAtUtc?: string | null;
 }
+
+export interface Schedule {
+  id: string;
+  flowId: string;
+  cronExpression: string;
+  isEnabled: boolean;
+  nextRunAtUtc?: string | null;
+  lastRunAtUtc?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
