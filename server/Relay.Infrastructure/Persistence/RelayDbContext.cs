@@ -127,7 +127,10 @@ public class RelayDbContext : DbContext
         {
             e.Property(r => r.Error).HasMaxLength(4000);
             e.Property(r => r.TriggerPayloadJson).HasMaxLength(8000);
+            e.Property(r => r.IdempotencyKey).HasMaxLength(200);
             e.HasIndex(r => new { r.FlowId, r.StartedAtUtc });
+            // Unique per flow among non-null keys (SQLite treats NULLs as distinct).
+            e.HasIndex(r => new { r.FlowId, r.IdempotencyKey }).IsUnique();
             e.HasOne(r => r.Flow)
                 .WithMany(f => f.Runs)
                 .HasForeignKey(r => r.FlowId)

@@ -29,6 +29,7 @@ public static class DependencyInjection
 
         // Flow execution over the IActionDispatcher port (no real external calls).
         services.AddSingleton<IActionDispatcher, SimulatedActionDispatcher>();
+        services.AddSingleton<IDelayer, TaskDelayer>();
         services.AddScoped<IFlowExecutor, FlowExecutor>();
 
         // Scheduling: a clock port (fakeable in tests) + the tick dispatcher.

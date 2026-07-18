@@ -47,13 +47,27 @@ public sealed class HooksController : ControllerBase
                 statusCode: StatusCodes.Status409Conflict);
         }
 
+        // Idempotency: a duplicate delivery carrying a key we've already seen for
+        // this flow returns the original run instead of creating a new one.
+        var idempotencyKey = ReadIdempotencyKey();
+        if (idempotencyKey is not null)
+        {
+            var existing = await _db.Runs.AsNoTracking()
+                .FirstOrDefaultAsync(r => r.FlowId == webhook.FlowId && r.IdempotencyKey == idempotencyKey, ct);
+            if (existing is not null)
+            {
+                return Accepted(new { runId = existing.Id, status = existing.Status.ToString(), deduplicated = true });
+            }
+        }
+
         var payload = await ReadBodyAsync(ct);
-        var run = await _executor.RunFlowAsync(webhook.FlowId, RunTrigger.Webhook, payload, ct);
+        var run = await _executor.RunFlowAsync(
+            webhook.FlowId, RunTrigger.Webhook, payload, ct, idempotencyKey: idempotencyKey);
 
         webhook.LastTriggeredAtUtc = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
 
-        return Accepted(new { runId = run!.Id, status = run.Status.ToString() });
+        return Accepted(new { runId = run!.Id, status = run.Status.ToString(), deduplicated = false });
     }
 
     private async Task<string?> ReadBodyAsync(CancellationToken ct)
@@ -61,5 +75,11 @@ public sealed class HooksController : ControllerBase
         using var reader = new StreamReader(Request.Body);
         var body = await reader.ReadToEndAsync(ct);
         return string.IsNullOrWhiteSpace(body) ? null : body;
+    }
+
+    private string? ReadIdempotencyKey()
+    {
+        var value = Request.Headers["Idempotency-Key"].ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

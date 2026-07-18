@@ -9,6 +9,7 @@ import ConnectionsPage from './pages/ConnectionsPage';
 import FlowsPage from './pages/FlowsPage';
 import FlowEditorPage from './pages/FlowEditorPage';
 import RunsPage from './pages/RunsPage';
+import DeadLetterPage from './pages/DeadLetterPage';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="flows/new" element={<FlowEditorPage />} />
           <Route path="flows/:id" element={<FlowEditorPage />} />
           <Route path="runs" element={<RunsPage />} />
+          <Route path="dead-letter" element={<DeadLetterPage />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>

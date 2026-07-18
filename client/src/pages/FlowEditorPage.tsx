@@ -19,7 +19,14 @@ export default function FlowEditorPage() {
   return <Editor workspaceId={current.id} flowId={id} key={id ?? 'new'} />;
 }
 
-const emptyStep: FlowStepInput = { name: '', connectionId: '', action: '', configJson: '{}' };
+const emptyStep: FlowStepInput = {
+  name: '',
+  connectionId: '',
+  action: '',
+  configJson: '{}',
+  maxAttempts: 3,
+  backoffSeconds: 0,
+};
 
 function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string }) {
   const navigate = useNavigate();
@@ -55,6 +62,8 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
         connectionId: s.connectionId,
         action: s.action,
         configJson: s.configJson,
+        maxAttempts: s.maxAttempts,
+        backoffSeconds: s.backoffSeconds,
       })),
     );
     setLoaded(true);
@@ -176,6 +185,26 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
                 onChange={(e) => updateStep(index, { action: e.target.value })}
                 placeholder="e.g. send_message"
                 required
+              />
+            </label>
+            <label>
+              Max attempts
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={step.maxAttempts ?? 3}
+                onChange={(e) => updateStep(index, { maxAttempts: Number(e.target.value) })}
+              />
+            </label>
+            <label>
+              Backoff (s)
+              <input
+                type="number"
+                min={0}
+                max={3600}
+                value={step.backoffSeconds ?? 0}
+                onChange={(e) => updateStep(index, { backoffSeconds: Number(e.target.value) })}
               />
             </label>
             <div className="actions">

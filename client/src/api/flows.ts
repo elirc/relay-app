@@ -6,6 +6,8 @@ export interface FlowStepInput {
   connectionId: string;
   action: string;
   configJson: string;
+  maxAttempts?: number;
+  backoffSeconds?: number;
 }
 
 export interface FlowInput {
