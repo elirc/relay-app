@@ -335,6 +335,46 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+.template-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.template-card {
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #0b1220;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.template-card h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.1rem;
+}
+
+.template-steps {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin-top: auto;
+}
+
+.port-panel {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1e293b;
+}
+
+.port-panel textarea {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
 .pagination {
   display: flex;
   align-items: center;

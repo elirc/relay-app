@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Relay.Domain.Entities;
 using Relay.Domain.Enums;
@@ -34,14 +35,64 @@ public static class DatabaseSeeder
 
     private static readonly DateTimeOffset SeedTime = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
+    private static readonly JsonSerializerOptions TemplateJson = new(JsonSerializerDefaults.Web);
+
     public static async Task SeedAsync(RelayDbContext db, bool includeDemoData = true)
     {
         await SeedConnectorsAsync(db);
+        await SeedTemplatesAsync(db);
         if (includeDemoData)
         {
             await SeedDemoWorkspaceAsync(db);
         }
         await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedTemplatesAsync(RelayDbContext db)
+    {
+        if (await db.FlowTemplates.AnyAsync()) return;
+
+        db.FlowTemplates.AddRange(
+            new FlowTemplate
+            {
+                Id = new Guid("88888888-0000-0000-0000-000000000001"),
+                Name = "Slack alert on webhook",
+                Description = "When a webhook arrives, post a message to Slack.",
+                Category = "Notifications",
+                TriggerConnectorKey = "http",
+                StepsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { name = "Post to Slack", connectorKey = "slack", action = "send_message", configJson = """{"text":"New event"}""", maxAttempts = 3, backoffSeconds = 0 },
+                }, TemplateJson),
+                CreatedAtUtc = SeedTime,
+            },
+            new FlowTemplate
+            {
+                Id = new Guid("88888888-0000-0000-0000-000000000002"),
+                Name = "Log to spreadsheet",
+                Description = "Append every inbound event as a row in a spreadsheet.",
+                Category = "Data",
+                TriggerConnectorKey = "http",
+                StepsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { name = "Append row", connectorKey = "sheets", action = "append_row", configJson = "{}", maxAttempts = 3, backoffSeconds = 0 },
+                }, TemplateJson),
+                CreatedAtUtc = SeedTime,
+            },
+            new FlowTemplate
+            {
+                Id = new Guid("88888888-0000-0000-0000-000000000003"),
+                Name = "Delayed email follow-up",
+                Description = "Wait, then send a follow-up email.",
+                Category = "Notifications",
+                TriggerConnectorKey = "http",
+                StepsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { name = "Wait", connectorKey = "delay", action = "wait", configJson = """{"seconds":60}""", maxAttempts = 1, backoffSeconds = 0 },
+                    new { name = "Send email", connectorKey = "email", action = "send", configJson = """{"subject":"Following up"}""", maxAttempts = 3, backoffSeconds = 5 },
+                }, TemplateJson),
+                CreatedAtUtc = SeedTime,
+            });
     }
 
     private static async Task SeedConnectorsAsync(RelayDbContext db)

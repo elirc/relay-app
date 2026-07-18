@@ -11,6 +11,7 @@ import FlowEditorPage from './pages/FlowEditorPage';
 import RunsPage from './pages/RunsPage';
 import DeadLetterPage from './pages/DeadLetterPage';
 import DashboardPage from './pages/DashboardPage';
+import TemplatesPage from './pages/TemplatesPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="connectors" element={<ConnectorsPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
+          <Route path="templates" element={<TemplatesPage />} />
           <Route path="flows" element={<FlowsPage />} />
           <Route path="flows/new" element={<FlowEditorPage />} />
           <Route path="flows/:id" element={<FlowEditorPage />} />

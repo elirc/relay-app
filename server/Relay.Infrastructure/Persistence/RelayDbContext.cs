@@ -14,6 +14,7 @@ public class RelayDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Connector> Connectors => Set<Connector>();
     public DbSet<ConnectorVersion> ConnectorVersions => Set<ConnectorVersion>();
+    public DbSet<FlowTemplate> FlowTemplates => Set<FlowTemplate>();
     public DbSet<Connection> Connections => Set<Connection>();
     public DbSet<Flow> Flows => Set<Flow>();
     public DbSet<FlowStep> FlowSteps => Set<FlowStep>();
@@ -67,6 +68,14 @@ public class RelayDbContext : DbContext
             e.Property(c => c.Description).HasMaxLength(2000);
         });
 
+        b.Entity<FlowTemplate>(e =>
+        {
+            e.Property(t => t.Description).HasMaxLength(2000);
+            e.Property(t => t.Category).HasMaxLength(100);
+            e.Property(t => t.TriggerConnectorKey).HasMaxLength(100);
+            e.Property(t => t.StepsJson).HasMaxLength(8000);
+        });
+
         b.Entity<ConnectorVersion>(e =>
         {
             e.Property(v => v.ConfigSchemaJson).HasMaxLength(8000);
@@ -99,7 +108,10 @@ public class RelayDbContext : DbContext
         b.Entity<Flow>(e =>
         {
             e.Property(f => f.Description).HasMaxLength(2000);
+            e.Property(f => f.ExternalId).HasMaxLength(200);
             e.HasIndex(f => new { f.WorkspaceId, f.Name });
+            // Unique per workspace among non-null external ids (idempotent import).
+            e.HasIndex(f => new { f.WorkspaceId, f.ExternalId }).IsUnique();
             e.HasOne(f => f.Workspace)
                 .WithMany(w => w.Flows)
                 .HasForeignKey(f => f.WorkspaceId)

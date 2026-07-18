@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import FlowsPage from './FlowsPage';
@@ -72,5 +72,42 @@ describe('FlowsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /delete notify slack/i }));
 
     await waitFor(() => expect(del).toHaveBeenCalledWith('ws1', 'f1'));
+  });
+
+  it('exports a flow as JSON', async () => {
+    vi.spyOn(flowsApi, 'listFlows').mockResolvedValue(page([flow]));
+    vi.spyOn(flowsApi, 'exportFlow').mockResolvedValue({
+      externalId: 'ext-1',
+      name: 'Notify Slack',
+      description: null,
+      trigger: { connectorKey: 'http', connectionName: 'Inbound' },
+      steps: [],
+    });
+
+    renderPage();
+    await screen.findByText('Notify Slack');
+
+    await userEvent.click(screen.getByRole('button', { name: /export notify slack/i }));
+
+    const textarea = (await screen.findByLabelText('Exported flow JSON')) as HTMLTextAreaElement;
+    expect(textarea.value).toContain('ext-1');
+  });
+
+  it('validates an imported flow document (dry run)', async () => {
+    vi.spyOn(flowsApi, 'listFlows').mockResolvedValue(page([flow]));
+    const importSpy = vi
+      .spyOn(flowsApi, 'importFlow')
+      .mockResolvedValue({ valid: true, action: 'create', flowId: null, issues: [] });
+
+    renderPage();
+    await screen.findByText('Notify Slack');
+
+    const json =
+      '{"externalId":"x","name":"n","trigger":{"connectorKey":"http","connectionName":"c"},"steps":[]}';
+    fireEvent.change(screen.getByLabelText('Import flow JSON'), { target: { value: json } });
+    await userEvent.click(screen.getByRole('button', { name: 'Validate' }));
+
+    await waitFor(() => expect(importSpy).toHaveBeenCalledWith('ws1', expect.anything(), true));
+    expect(await screen.findByText(/will create/i)).toBeInTheDocument();
   });
 });

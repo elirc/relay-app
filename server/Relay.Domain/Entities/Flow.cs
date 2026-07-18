@@ -14,6 +14,9 @@ public class Flow
     public required string Name { get; set; }
     public string? Description { get; set; }
 
+    /// <summary>Stable portable id used to make flow import idempotent (unique per workspace).</summary>
+    public string? ExternalId { get; set; }
+
     /// <summary>The connection whose events start this flow.</summary>
     public Guid TriggerConnectionId { get; set; }
     public Connection? TriggerConnection { get; set; }
