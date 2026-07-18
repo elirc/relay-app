@@ -34,8 +34,10 @@ Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
   a version can be **deprecated** to steer new installs to a newer one.
 - **Connection** — a connector installed in a workspace, with config + stored
   credentials. The config is **validated against the connector version's JSON
-  schema** on create/update. Credentials are **never** returned to clients (only a
-  `hasCredentials` flag).
+  schema** on create/update. Secrets are **encrypted at rest** with envelope
+  encryption (a per-secret data key wrapped by a key port / local KMS), are
+  **write-only** (never returned — only a `hasCredentials` flag), and can be
+  **rotated** to a fresh data key.
 - **Flow** — a trigger connection plus an ordered list of steps; enable/disable.
 - **Run** — one execution: status (`Pending`/`Running`/`Succeeded`/`Failed`),
   duration, retry count, and a `RunStepLog` per step (trigger is step 0). Each
@@ -72,6 +74,7 @@ mutations require Admin.
 | `GET/POST /api/connectors/{id}/versions` | List / publish connector schema versions |
 | `POST /api/connectors/{id}/versions/{v}/deprecate` | Deprecate a version |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/connections` · `/{id}` | Connection CRUD (config validated against the connector version) |
+| `POST /api/workspaces/{ws}/connections/{id}/rotate-secret` | Re-encrypt the stored secret under a new data key |
 | `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows` · `/{id}` | Flow CRUD |
 | `POST /api/workspaces/{ws}/flows/{id}/enable` · `/disable` | Toggle a flow |
 | `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
@@ -162,15 +165,17 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 127 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 138 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
   validation, ProblemDetails shape, the auth denial matrix (401 / 403 / 404, role
   gating, foreign-workspace isolation), connector versioning + JSON-schema config
   validation, scheduling (cron parsing/next-run, dispatcher over a fake clock,
-  schedule API + preview), and retries/dead-letter (per-step attempts + backoff
-  over a fake delayer, replay-from-step, dead-letter list, webhook idempotency).
-- **Client**: 37 Vitest tests — the API wrapper, health/connectors/connections/
+  schedule API + preview), retries/dead-letter (per-step attempts + backoff over a
+  fake delayer, replay-from-step, dead-letter list, webhook idempotency), and
+  secret protection (envelope round-trip over a fake KMS, rotation, write-only +
+  encrypted-at-rest via the API).
+- **Client**: 38 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
-  schema-driven connection form, the cron schedule editor, and the dead-letter
-  view (list + replay-from-step), all with the API layer mocked.
+  schema-driven connection form, the cron schedule editor, the dead-letter view,
+  and secret rotation (masked write-only field), all with the API layer mocked.

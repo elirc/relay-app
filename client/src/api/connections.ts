@@ -44,3 +44,7 @@ export function updateConnection(
 export function deleteConnection(workspaceId: string, id: string): Promise<void> {
   return api.del<void>(`${base(workspaceId)}/${id}`);
 }
+
+export function rotateSecret(workspaceId: string, id: string): Promise<Connection> {
+  return api.post<Connection>(`${base(workspaceId)}/${id}/rotate-secret`, {});
+}

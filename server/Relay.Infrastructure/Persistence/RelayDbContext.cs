@@ -78,7 +78,7 @@ public class RelayDbContext : DbContext
         b.Entity<Connection>(e =>
         {
             e.Property(c => c.ConfigJson).HasMaxLength(8000);
-            e.Property(c => c.CredentialsJson).HasMaxLength(8000);
+            e.Property(c => c.EncryptedSecret).HasMaxLength(12000);
             e.HasIndex(c => new { c.WorkspaceId, c.Name });
             e.HasOne(c => c.Workspace)
                 .WithMany(w => w.Connections)
