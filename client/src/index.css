@@ -229,10 +229,18 @@ code {
 }
 
 .run-detail,
-.webhooks {
+.webhooks,
+.schedules {
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid #1e293b;
+}
+
+.next-runs {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
 }
 
 .pagination {

@@ -8,6 +8,7 @@ import type { FlowInput, FlowStepInput } from '../api/flows';
 import { createWebhook, deleteWebhook, listWebhooks } from '../api/webhooks';
 import type { Connection } from '../api/types';
 import { ApiError } from '../api/client';
+import SchedulesSection from '../components/SchedulesSection';
 
 export default function FlowEditorPage() {
   const { current, status, message } = useWorkspace();
@@ -216,7 +217,12 @@ function Editor({ workspaceId, flowId }: { workspaceId: string; flowId?: string 
         </div>
       </form>
 
-      {isEdit && flowId && <WebhooksSection workspaceId={workspaceId} flowId={flowId} />}
+      {isEdit && flowId && (
+        <>
+          <SchedulesSection workspaceId={workspaceId} flowId={flowId} />
+          <WebhooksSection workspaceId={workspaceId} flowId={flowId} />
+        </>
+      )}
     </section>
   );
 }

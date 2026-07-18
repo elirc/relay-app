@@ -40,6 +40,9 @@ Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
 - **Run** — one execution: status (`Pending`/`Running`/`Succeeded`/`Failed`),
   duration, retry count, and a `RunStepLog` per step (trigger is step 0).
 - **Webhook** — a tokenized URL; `POST` to it triggers the flow.
+- **Schedule** — a cron-style trigger for a flow. An in-process scheduler (over a
+  clock port, fakeable in tests) runs due schedules through the same executor and
+  advances each to its next run.
 
 ---
 
@@ -71,6 +74,9 @@ mutations require Admin.
 | `POST /api/workspaces/{ws}/flows/{id}/run` | Trigger a flow manually |
 | `GET /api/workspaces/{ws}/runs` · `/{runId}` | Run history + detail |
 | `POST /api/workspaces/{ws}/runs/{runId}/retry` | Re-run with the original payload |
+| `GET/POST/PUT/DELETE /api/workspaces/{ws}/flows/{id}/schedules` · `/{sid}` | Cron schedules |
+| `POST /api/workspaces/{ws}/flows/{id}/schedules/{sid}/enable` · `/disable` | Toggle a schedule |
+| `GET /api/workspaces/{ws}/flows/{id}/schedules/preview?cron=` | Validate + preview next runs |
 | `GET/POST/DELETE /api/workspaces/{ws}/flows/{id}/webhooks` | Manage webhooks |
 | `POST /api/hooks/{token}` | Public inbound webhook trigger |
 
@@ -151,13 +157,14 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 87 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 115 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
   validation, ProblemDetails shape, the auth denial matrix (401 / 403 / 404, role
-  gating, foreign-workspace isolation), and connector versioning + JSON-schema
-  config validation (deprecation, version resolution, invalid/typed config).
-- **Client**: 32 Vitest tests — the API wrapper, health/connectors/connections/
-  flows/runs pages, the pagination component, the login page and route guard, and
-  the schema-driven connection form (field parsing + config building), all with
-  the API layer mocked.
+  gating, foreign-workspace isolation), connector versioning + JSON-schema config
+  validation, and scheduling (cron parsing/next-run, dispatcher over a fake clock,
+  schedule API + preview).
+- **Client**: 35 Vitest tests — the API wrapper, health/connectors/connections/
+  flows/runs pages, the pagination component, the login page and route guard, the
+  schema-driven connection form, and the cron schedule editor (live preview +
+  create), all with the API layer mocked.

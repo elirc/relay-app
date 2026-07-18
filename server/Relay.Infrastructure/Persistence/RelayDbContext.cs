@@ -20,6 +20,7 @@ public class RelayDbContext : DbContext
     public DbSet<Run> Runs => Set<Run>();
     public DbSet<RunStepLog> RunStepLogs => Set<RunStepLog>();
     public DbSet<Webhook> Webhooks => Set<Webhook>();
+    public DbSet<Schedule> Schedules => Set<Schedule>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -158,6 +159,20 @@ public class RelayDbContext : DbContext
             e.HasOne(w => w.Flow)
                 .WithMany(f => f.Webhooks)
                 .HasForeignKey(w => w.FlowId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Schedule>(e =>
+        {
+            e.Property(s => s.CronExpression).HasMaxLength(120);
+            e.HasIndex(s => new { s.FlowId, s.NextRunAtUtc });
+            e.HasOne(s => s.Workspace)
+                .WithMany()
+                .HasForeignKey(s => s.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.Flow)
+                .WithMany(f => f.Schedules)
+                .HasForeignKey(s => s.FlowId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

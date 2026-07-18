@@ -2,8 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Relay.Domain.Execution;
+using Relay.Domain.Time;
 using Relay.Infrastructure.Execution;
 using Relay.Infrastructure.Persistence;
+using Relay.Infrastructure.Scheduling;
+using Relay.Infrastructure.Time;
 
 namespace Relay.Infrastructure;
 
@@ -27,6 +30,10 @@ public static class DependencyInjection
         // Flow execution over the IActionDispatcher port (no real external calls).
         services.AddSingleton<IActionDispatcher, SimulatedActionDispatcher>();
         services.AddScoped<IFlowExecutor, FlowExecutor>();
+
+        // Scheduling: a clock port (fakeable in tests) + the tick dispatcher.
+        services.AddSingleton<IClock, SystemClock>();
+        services.AddScoped<ScheduleDispatcher>();
 
         return services;
     }

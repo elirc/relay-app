@@ -26,4 +26,5 @@ public class Flow
     public ICollection<FlowStep> Steps { get; set; } = new List<FlowStep>();
     public ICollection<Run> Runs { get; set; } = new List<Run>();
     public ICollection<Webhook> Webhooks { get; set; } = new List<Webhook>();
+    public ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 }
