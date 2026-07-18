@@ -5,6 +5,7 @@ using Relay.Api.Contracts.Connections;
 using Relay.Api.Security;
 using Relay.Domain.Entities;
 using Relay.Domain.Enums;
+using Relay.Domain.Security;
 using Relay.Domain.Validation;
 using Relay.Infrastructure.Persistence;
 
@@ -16,8 +17,17 @@ namespace Relay.Api.Controllers;
 public sealed class ConnectionsController : ControllerBase
 {
     private readonly RelayDbContext _db;
+    private readonly ISecretProtector _protector;
 
-    public ConnectionsController(RelayDbContext db) => _db = db;
+    public ConnectionsController(RelayDbContext db, ISecretProtector protector)
+    {
+        _db = db;
+        _protector = protector;
+    }
+
+    /// <summary>Encrypts a submitted secret, or null when the caller sends nothing/clears it.</summary>
+    private string? ProtectOrNull(string? plaintext) =>
+        string.IsNullOrWhiteSpace(plaintext) || plaintext == "{}" ? null : _protector.Protect(plaintext);
 
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<ConnectionDto>), StatusCodes.Status200OK)]
@@ -117,7 +127,7 @@ public sealed class ConnectionsController : ControllerBase
             ConnectorVersionId = version?.Id,
             Name = request.Name!.Trim(),
             ConfigJson = configJson,
-            CredentialsJson = string.IsNullOrWhiteSpace(request.CredentialsJson) ? "{}" : request.CredentialsJson,
+            EncryptedSecret = ProtectOrNull(request.CredentialsJson),
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
         };
@@ -160,13 +170,42 @@ public sealed class ConnectionsController : ControllerBase
         connection.Name = request.Name!.Trim();
         connection.ConfigJson = configJson;
         connection.Status = request.Status!.Value;
-        // Only overwrite credentials when the caller supplies them.
+        // Only touch the secret when supplied: a value re-seals it, "{}"/empty clears it.
         if (request.CredentialsJson is not null)
         {
-            connection.CredentialsJson = request.CredentialsJson;
+            connection.EncryptedSecret = ProtectOrNull(request.CredentialsJson);
         }
         connection.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
+        await _db.SaveChangesAsync(ct);
+        return Ok(ConnectionDto.From(connection));
+    }
+
+    /// <summary>Re-encrypts the stored secret under a brand-new data key.</summary>
+    [HttpPost("{id:guid}/rotate-secret")]
+    [RequireWorkspaceRole(WorkspaceRole.Admin)]
+    [ProducesResponseType(typeof(ConnectionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ConnectionDto>> RotateSecret(Guid workspaceId, Guid id, CancellationToken ct)
+    {
+        var connection = await _db.Connections
+            .Include(c => c.Connector)
+            .Include(c => c.ConnectorVersion)
+            .FirstOrDefaultAsync(c => c.Id == id && c.WorkspaceId == workspaceId, ct);
+        if (connection is null) return ConnectionNotFound(id);
+
+        if (string.IsNullOrWhiteSpace(connection.EncryptedSecret))
+        {
+            return Problem(
+                title: "No secret to rotate",
+                detail: "This connection has no stored credentials.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        connection.EncryptedSecret = _protector.Rotate(connection.EncryptedSecret);
+        connection.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
         return Ok(ConnectionDto.From(connection));
     }

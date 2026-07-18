@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAsync } from '../hooks/useAsync';
 import { useWorkspace } from '../workspace/WorkspaceContext';
-import { createConnection, deleteConnection, listConnections } from '../api/connections';
+import { createConnection, deleteConnection, listConnections, rotateSecret } from '../api/connections';
 import { listConnectors } from '../api/connectors';
 import { ApiError } from '../api/client';
 import { buildConfigJson, parseSchemaFields } from '../lib/schema';
@@ -92,6 +92,16 @@ function ConnectionsInner({
     }
   }
 
+  async function onRotate(id: string) {
+    setFormError(undefined);
+    try {
+      await rotateSecret(workspaceId, id);
+      connections.reload();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Failed to rotate secret');
+    }
+  }
+
   return (
     <section>
       <h1>Connections</h1>
@@ -132,7 +142,16 @@ function ConnectionsInner({
                 </td>
                 <td>{c.status}</td>
                 <td>{c.hasCredentials ? 'set' : '—'}</td>
-                <td>
+                <td className="actions">
+                  {c.hasCredentials && (
+                    <button
+                      type="button"
+                      onClick={() => onRotate(c.id)}
+                      aria-label={`Rotate secret for ${c.name}`}
+                    >
+                      Rotate secret
+                    </button>
+                  )}
                   <button type="button" onClick={() => onDelete(c.id)} aria-label={`Delete ${c.name}`}>
                     Delete
                   </button>
@@ -204,11 +223,13 @@ function ConnectionsInner({
             )}
 
         <label>
-          Credentials (JSON, optional)
+          Secret (JSON, optional — write-only)
           <input
+            type="password"
             value={credentialsJson}
             onChange={(e) => setCredentialsJson(e.target.value)}
             placeholder='{"apiKey":"…"}'
+            autoComplete="off"
           />
         </label>
         {formError && (

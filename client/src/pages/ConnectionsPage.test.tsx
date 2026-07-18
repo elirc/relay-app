@@ -124,4 +124,16 @@ describe('ConnectionsPage', () => {
 
     expect(await screen.findByText('deprecated')).toBeInTheDocument();
   });
+
+  it('rotates the secret of a connection that has credentials', async () => {
+    vi.spyOn(connectionsApi, 'listConnections').mockResolvedValue(page([connection]));
+    const rotate = vi.spyOn(connectionsApi, 'rotateSecret').mockResolvedValue(connection);
+
+    render(<ConnectionsPage />);
+    await screen.findByText('Acme #alerts');
+
+    await userEvent.click(screen.getByRole('button', { name: /rotate secret for acme #alerts/i }));
+
+    await waitFor(() => expect(rotate).toHaveBeenCalledWith('ws1', 'x1'));
+  });
 });

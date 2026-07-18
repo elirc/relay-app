@@ -25,8 +25,11 @@ public class Connection
     /// <summary>Connector-specific configuration as a JSON object.</summary>
     public string ConfigJson { get; set; } = "{}";
 
-    /// <summary>Stored secret material as a JSON object. Never returned to clients.</summary>
-    public string CredentialsJson { get; set; } = "{}";
+    /// <summary>
+    /// Secret material sealed with envelope encryption. Never returned to clients
+    /// (write-only); null when no credentials are set.
+    /// </summary>
+    public string? EncryptedSecret { get; set; }
 
     public ConnectionStatus Status { get; set; } = ConnectionStatus.Active;
 

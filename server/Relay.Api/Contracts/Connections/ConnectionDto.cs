@@ -4,8 +4,8 @@ using Relay.Domain.Enums;
 namespace Relay.Api.Contracts.Connections;
 
 /// <summary>
-/// Connection projection safe to return to clients — the stored
-/// <c>CredentialsJson</c> is never included, only whether credentials are set.
+/// Connection projection safe to return to clients — the encrypted secret is
+/// never included, only whether credentials are set.
 /// </summary>
 public sealed record ConnectionDto(
     Guid Id,
@@ -33,7 +33,7 @@ public sealed record ConnectionDto(
             c.ConnectorVersion?.IsDeprecated ?? false,
             c.Name,
             c.ConfigJson,
-            !string.IsNullOrWhiteSpace(c.CredentialsJson) && c.CredentialsJson != "{}",
+            !string.IsNullOrWhiteSpace(c.EncryptedSecret),
             c.Status,
             c.CreatedAtUtc,
             c.UpdatedAtUtc);
