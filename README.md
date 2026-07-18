@@ -17,6 +17,21 @@ Flow execution runs through an in-process executor over **ports** (interfaces),
 so there are **no real external calls** — the default adapter simulates each
 connector deterministically, and tests inject fakes.
 
+## Documentation
+
+Full docs live in [`docs/`](docs/):
+
+- [**Architecture**](docs/architecture.md) — layout, executor/ports, scheduling,
+  retry/dead-letter, secrets, webhook verification, metrics, concurrency.
+- [**API reference**](docs/api-reference.md) — every endpoint with auth, shapes,
+  and error codes.
+- [**Getting started**](docs/getting-started.md) — run both halves + an end-to-end
+  walkthrough (login → connection → flow → run → webhook → dead-letter replay →
+  metrics).
+- [**Testing**](docs/testing.md) — taxonomy, harnesses, the drift guard, and the
+  Vitest-4 load policy.
+- [**ADRs**](docs/adr/README.md) — the load-bearing decisions and why.
+
 ---
 
 ## Domain
@@ -184,7 +199,7 @@ connectors, connections, flows (list + editor), and runs.
 
 ## Test coverage
 
-- **Server**: 175 xUnit tests — persistence + DateTimeOffset ordering, connector /
+- **Server**: 229 xUnit tests — persistence + DateTimeOffset ordering, connector /
   connection / workspace / flow / run / webhook APIs (incl. 400/404/409 paths),
   executor unit tests (retry, skip-after-failure, transient recovery), pagination,
   validation, ProblemDetails shape, the auth denial matrix (401 / 403 / 404, role
@@ -199,11 +214,19 @@ connectors, connections, flows (list + editor), and runs.
   zero-filled time series; workspace + per-flow metrics API), templates +
   portability (instantiate, export, idempotent import by external id, dry-run),
   and production readiness (health DB probe, optimistic-concurrency 409, trigger
-  rate-limit 429, pagination audit).
-- **Client**: 47 Vitest tests — the API wrapper, health/connectors/connections/
+  rate-limit 429, pagination audit). A **migration-drift guard** fails if the EF
+  model diverges from the checked-in migrations, and expansion suites deepen the
+  riskiest paths: mid-flow failure + retry/backoff boundaries, the webhook
+  timestamp-window edges over a fake clock, secret write-only sweeps + rotation,
+  cron month/leap/rollover edges + scheduler catch-up, import round-trip +
+  dry-run zero-side-effects, a parameterized authz matrix, and stale-token step
+  replacement. See [`docs/testing.md`](docs/testing.md).
+- **Client**: 53 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
   schema-driven connection form, the cron schedule editor, the dead-letter view,
   secret rotation, webhook signing-secret management + delivery log, the metrics
-  dashboard, and the template gallery + flow export/import, all with the API layer
+  dashboard, and the template gallery + flow export/import — including the flow-editor
+  409 "changed elsewhere" path, the dead-letter replay notice/error, schema-driven
+  config validation, and a masked write-only secret field — all with the API layer
   mocked. Files run sequentially (Vitest `fileParallelism: false`) for reliability
   on the shared machine.
