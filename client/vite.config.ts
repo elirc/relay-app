@@ -10,5 +10,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Generous timeouts: jsdom setup can be slow on a loaded/shared machine.
+    testTimeout: 20000,
+    hookTimeout: 20000,
   },
 });

@@ -243,6 +243,24 @@ code {
   font-size: 0.9rem;
 }
 
+.signing-secret {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #78350f;
+  border-radius: 6px;
+  background: #1c1917;
+}
+
+.signing-secret .hint {
+  margin-top: 0.35rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.delivery-log {
+  margin-top: 1rem;
+}
+
 .pagination {
   display: flex;
   align-items: center;

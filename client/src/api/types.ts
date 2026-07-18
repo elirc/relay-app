@@ -132,8 +132,27 @@ export interface Webhook {
   token: string;
   url: string;
   isEnabled: boolean;
+  requireSignature: boolean;
+  hasSigningSecret: boolean;
   createdAtUtc: string;
   lastTriggeredAtUtc?: string | null;
+}
+
+export type WebhookDeliveryOutcome =
+  | 'Delivered'
+  | 'MissingSignature'
+  | 'InvalidSignature'
+  | 'TimestampExpired'
+  | 'FlowDisabled'
+  | 'Duplicate';
+
+export interface WebhookDelivery {
+  id: string;
+  receivedAtUtc: string;
+  success: boolean;
+  outcome: WebhookDeliveryOutcome;
+  runId?: string | null;
+  detail?: string | null;
 }
 
 export interface Schedule {

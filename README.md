@@ -44,7 +44,12 @@ Workspace ─┬─ User                     (auth: PBKDF2-hashed credentials)
   step carries a **retry policy** (max attempts + backoff); failed runs form the
   **dead-letter** list and can be **replayed** from a chosen step. Webhook runs
   can carry an idempotency key so duplicate deliveries reuse the same run.
-- **Webhook** — a tokenized URL; `POST` to it triggers the flow.
+- **Webhook** — a tokenized URL; `POST` to it triggers the flow. Optionally
+  hardened with a per-endpoint **HMAC signing secret** (show-once) — inbound
+  requests must send `X-Relay-Timestamp` + `X-Relay-Signature` over
+  `{timestamp}.{body}`, checked against a replay window. Every attempt is recorded
+  in a **delivery log** classified by outcome (delivered / bad signature / replay
+  / duplicate / flow-disabled).
 - **Schedule** — a cron-style trigger for a flow. An in-process scheduler (over a
   clock port, fakeable in tests) runs due schedules through the same executor and
   advances each to its next run.
@@ -86,7 +91,9 @@ mutations require Admin.
 | `POST /api/workspaces/{ws}/flows/{id}/schedules/{sid}/enable` · `/disable` | Toggle a schedule |
 | `GET /api/workspaces/{ws}/flows/{id}/schedules/preview?cron=` | Validate + preview next runs |
 | `GET/POST/DELETE /api/workspaces/{ws}/flows/{id}/webhooks` | Manage webhooks |
-| `POST /api/hooks/{token}` | Public inbound webhook trigger (`Idempotency-Key` header de-dupes) |
+| `POST/DELETE /api/workspaces/{ws}/flows/{id}/webhooks/{wid}/signing-secret` | Rotate (show-once) / disable HMAC signing |
+| `GET /api/workspaces/{ws}/flows/{id}/webhooks/{wid}/deliveries` | Delivery log (classified) |
+| `POST /api/hooks/{token}` | Public inbound webhook trigger (`Idempotency-Key` de-dupes; HMAC-signed when enabled) |
 
 ---
 
@@ -174,8 +181,10 @@ connectors, connections, flows (list + editor), and runs.
   schedule API + preview), retries/dead-letter (per-step attempts + backoff over a
   fake delayer, replay-from-step, dead-letter list, webhook idempotency), and
   secret protection (envelope round-trip over a fake KMS, rotation, write-only +
-  encrypted-at-rest via the API).
-- **Client**: 38 Vitest tests — the API wrapper, health/connectors/connections/
+  encrypted-at-rest via the API), and webhook hardening (HMAC compute/verify,
+  signed/missing/invalid/expired deliveries + classified delivery log).
+- **Client**: 41 Vitest tests — the API wrapper, health/connectors/connections/
   flows/runs pages, the pagination component, the login page and route guard, the
   schema-driven connection form, the cron schedule editor, the dead-letter view,
-  and secret rotation (masked write-only field), all with the API layer mocked.
+  secret rotation, and webhook signing-secret management + delivery log, all with
+  the API layer mocked.

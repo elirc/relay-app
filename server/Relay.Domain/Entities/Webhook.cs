@@ -19,6 +19,18 @@ public class Webhook
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Per-endpoint HMAC signing secret, sealed with envelope encryption. When
+    /// set (and <see cref="RequireSignature"/> is true), inbound requests must
+    /// carry a valid signature. Never returned to clients (shown once on rotate).
+    /// </summary>
+    public string? SigningSecret { get; set; }
+
+    /// <summary>Whether inbound requests must be HMAC-signed to be accepted.</summary>
+    public bool RequireSignature { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset? LastTriggeredAtUtc { get; set; }
+
+    public ICollection<WebhookDelivery> Deliveries { get; set; } = new List<WebhookDelivery>();
 }
