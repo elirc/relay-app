@@ -10,6 +10,7 @@ import FlowsPage from './pages/FlowsPage';
 import FlowEditorPage from './pages/FlowEditorPage';
 import RunsPage from './pages/RunsPage';
 import DeadLetterPage from './pages/DeadLetterPage';
+import DashboardPage from './pages/DashboardPage';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="connectors" element={<ConnectorsPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
           <Route path="flows" element={<FlowsPage />} />
