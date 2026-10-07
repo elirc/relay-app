@@ -143,7 +143,8 @@ plaintext ─► EnvelopeSecretProtector.Protect
                  │  GenerateDataKey() ──► KMS returns { plaintext DEK, wrapped DEK }
                  │  AES-GCM encrypt(plaintext, DEK)  → nonce, tag, cipher
                  │  zero the plaintext DEK
-                 └► envelope JSON { v, wrappedKey, nonce, tag, cipher }
+                 └► envelope JSON { V, WrappedKey, Nonce, Tag, Cipher }
+                    (System.Text.Json default names of the private Envelope record)
 ```
 
 - **`LocalKeyManagementService`** (the app's KMS stand-in) wraps each data key
@@ -237,3 +238,25 @@ the dashboard.
   workspace → **404**, before role) and role (`RequireWorkspaceRole` → **403**).
 - **No OpenAPI package** — Microsoft.OpenApi 2.x was removed; the API surface is
   documented here rather than via a generated Swagger document.
+
+---
+
+## Senior review findings
+
+Read-only review of the code as merged (PR #17). Each item names where to look; the
+per-ADR "Known gaps" sections in `docs/adr/` carry the detail.
+
+| # | Finding | Where | Severity |
+| --- | --- | --- | --- |
+| 1 | Webhook idempotency is check-then-insert; concurrent duplicates both run the flow, then the second save fails on the unique index → 500. | `server/Relay.Api/Controllers/HooksController.cs:86-100`, `server/Relay.Infrastructure/Persistence/RelayDbContext.cs:148`, `server/Relay.Infrastructure/Execution/FlowExecutor.cs:166` | High (double side effects) |
+| 2 | Runs are persisted only after the whole flow executes; a crash mid-run leaves no trace to resume or dead-letter. | `FlowExecutor.cs:56` (added to the context), `:166` (only save) | Medium |
+| 3 | Flow import ignores optimistic concurrency (no compare, no rotation) and skips the config-schema validation `PUT` performs. | `server/Relay.Api/Controllers/FlowsController.cs:318-330`, `:106` | Medium |
+| 4 | Import silently binds to any connection of the right connector when the named one is missing. | `FlowsController.cs:341-343` | Medium |
+| 5 | `expectedConcurrencyToken` is optional on `PUT`; omitting it is last-write-wins. | `FlowsController.cs:103` | Low |
+| 6 | Trigger rate limiter has a single `"global"` partition shared by all webhooks and manual runs. | `server/Relay.Api/Program.cs:73` | Medium (noisy-neighbour DoS) |
+| 7 | Signed webhooks can be replayed within the 5-minute window unless the sender adds `Idempotency-Key`. | `HooksController.cs:27`, `:86-97` | Medium |
+| 8 | Dev defaults for the JWT signing key and master key are committed in `appsettings.json`, and a missing `Secrets:MasterKey` silently falls back to a constant; nothing refuses to start with them in Production. | `server/Relay.Api/appsettings.json:13`, `:19`; `server/Relay.Infrastructure/DependencyInjection.cs:45-46` | High if deployed as-is |
+| 9 | AES-GCM envelopes carry no associated data, so an envelope moved between rows still decrypts. | `server/Relay.Infrastructure/Security/EnvelopeSecretProtector.cs:32` | Low |
+| 10 | The scheduler has no lease; two instances would double-fire, and a throw before save loses the "advance first" update. | `server/Relay.Infrastructure/Scheduling/ScheduleDispatcher.cs:41-55` | Medium (multi-instance only) |
+| 11 | Time is not uniformly behind `IClock` (executor and flow updates use `DateTimeOffset.UtcNow`). | `FlowExecutor.cs:45`, `FlowsController.cs:113` | Low (testability) |
+| 12 | Test blind spot: no test issues concurrent requests (no `Task.WhenAll` in `server/Relay.Tests`), so findings 1, 3 and 10 are invisible to CI. | `server/Relay.Tests/` | Medium |

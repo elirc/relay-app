@@ -142,3 +142,15 @@ curl -s -H "$AUTH" "http://localhost:5080/api/workspaces/$WS/metrics?days=7" | p
   returns **429**.
 - The server writes a local `relay.db` SQLite file on first run. Delete it to reset
   to a clean seeded state.
+
+## Exercises
+
+Each has an observable check you can confirm with the commands above.
+
+**Goal:** see the signature path. **Check:** generate a signing secret (`POST .../webhooks/{id}/signing-secret`, Admin), then repeat step 5 without headers and expect **401**; the webhook's delivery log should show a `MissingSignature` outcome. Compute `HMAC-SHA256(secret, "<unixSeconds>.<body>")` in lowercase hex, send it as `X-Relay-Signature` with `X-Relay-Timestamp`, and expect **202**.
+
+**Goal:** observe the replay window. **Check:** resend the exact signed request from the previous exercise without an `Idempotency-Key`: within 5 minutes it creates a **new** run (a different `runId`); after 5 minutes it returns **401** (`TimestampExpired`). This is the replay gap described in `docs/adr/0005-webhook-hmac-timestamp-idempotency.md`.
+
+**Goal:** observe optimistic concurrency. **Check:** `GET` a flow twice and note `concurrencyToken`; `PUT` once with that token (**200**), then `PUT` again with the same, now stale, token and expect **409** "Flow was modified". Then `PUT` with no `expectedConcurrencyToken` at all and observe **200** — the check is opt-in.
+
+**Goal:** observe import fallback binding. **Check:** export a flow (`GET .../flows/{id}/export`), change a step's `connectionName` to a name that does not exist, and import with `?dryRun=true`: expect `valid: true` with no issue reported, because `Resolve` falls back to any connection of that connector (`server/Relay.Api/Controllers/FlowsController.cs:341-343`).

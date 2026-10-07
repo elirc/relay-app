@@ -81,3 +81,15 @@ is quiet.
 
 Client tests mock the api modules (`vi.spyOn(api, 'fn')`) and render with a mocked
 `WorkspaceContext`, so **no server is required**.
+
+## What the suite does not cover
+
+Counted from source: 201 `[Fact]` + 28 `[InlineData]` rows across 6 `[Theory]` methods = the 229 server cases above; 53 `it`/`test` blocks in `client/src`.
+
+- **No concurrent requests.** There is no `Task.WhenAll` in `server/Relay.Tests`. Concurrency is tested only as *staleness* (a PUT with an old token), so the webhook idempotency race, two simultaneous flow `PUT`s reaching the `DbUpdateConcurrencyException` branch, and concurrent first imports of one `externalId` are untested (see the senior review table in `architecture.md`).
+- **No crash-mid-run test.** Runs are saved once at the end of execution (`server/Relay.Infrastructure/Execution/FlowExecutor.cs:166`); nothing simulates a failure between dispatch and save.
+- **Import validation parity.** No test asserts that an import with a schema-invalid step config is rejected the way `PUT` rejects it (it currently is not).
+- **Production configuration.** Tests run in the `Testing` environment with overridden services; nothing asserts that the app refuses to start with the committed dev JWT/master keys.
+- **Client ↔ server contract.** Client tests mock the API modules, so a renamed DTO field would pass the client suite and the server suite independently.
+
+**Goal:** close the first gap. **Check:** a new xUnit test sends two `POST /api/hooks/{token}` requests with the same `Idempotency-Key` via `Task.WhenAll`; today you should expect it to observe either two dispatches on the `FakeActionDispatcher` (`Calls == 2`) or a 500 — write it to assert the *desired* behaviour (one run, one dispatch, both responses 202) and watch it fail before fixing `HooksController`.

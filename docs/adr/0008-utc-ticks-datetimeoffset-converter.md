@@ -28,3 +28,13 @@ stored as **strings** so reordering enum members can't corrupt existing rows.
   converter is lossless for the values the app stores.
 - A dedicated `DateTimeOffsetOrderingTests` suite pins the ordering behavior so a
   future storage change can't regress it silently.
+
+## Where it lives in the code
+
+- `server/Relay.Infrastructure/Persistence/RelayDbContext.cs:27-35` — `ConfigureConventions`: the converter for every `DateTimeOffset` (`:30-31`), enums stored as strings with a max length (from `:34`).
+- Pinning tests: `server/Relay.Tests/DateTimeOffsetOrderingTests.cs`; schema drift guard: `MigrationDriftTests.cs`.
+
+## Known gaps
+
+- Values written with a non-zero offset come back as UTC; any feature that needs the sender's original offset cannot recover it.
+- Ad-hoc SQL against the database sees integers, not dates, so manual inspection with `sqlite3` needs a ticks-to-epoch conversion.

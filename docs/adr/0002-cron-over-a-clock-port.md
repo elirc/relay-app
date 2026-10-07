@@ -31,3 +31,15 @@ Split scheduling into three pieces and route all time through an `IClock` port:
   that missed many slots fires **once** per tick and catches up to a future slot.
 - The same `IClock` makes webhook timestamp windows and metrics windows testable.
 - Cron is evaluated in pure UTC — DST is a display concern, not a scheduling one.
+
+## Where it lives in the code
+
+- `server/Relay.Infrastructure/Scheduling/ScheduleDispatcher.cs:30-57` — `RunDueSchedulesAsync`: query due schedules (`:34-38`), advance `LastRunAtUtc`/`NextRunAtUtc` (`:44-46`), run enabled flows (`:48-52`), one `SaveChangesAsync` at the end (`:55`).
+- `ComputeNextRun` (`:60-61`) returns `null` for an unparseable expression, which takes the schedule out of the due query permanently (`NextRunAtUtc != null`, `:36`).
+- Parser: `server/Relay.Domain/Scheduling/CronExpression.cs`; hosted loop: `server/Relay.Api/Scheduling/ScheduleHostedService.cs`; registered only outside the `Testing` environment (`server/Relay.Api/Program.cs`, the `IsEnvironment("Testing")` check after the rate limiter).
+
+## Known gaps
+
+- "Advance first" is an in-memory change. It is persisted by the executor's own `SaveChangesAsync` (same scoped `DbContext`) or by `:55`. If `RunFlowAsync` throws before saving, the advance is lost and the schedule fires again on the next tick.
+- There is no lease or row lock: two app instances ticking at once would both see the same due rows and both run the flow. The design assumes a single scheduler process.
+- Not everything goes through `IClock` — see ADR-0001's gaps (executor timestamps) and `FlowsController` (`DateTimeOffset.UtcNow` at `:113`, `:295`).

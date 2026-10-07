@@ -27,3 +27,15 @@ nothing.
 - Clients must carry the token through the edit round trip; the flow editor surfaces
   the 409 with reconciliation guidance.
 - The check is per-flow; it doesn't coordinate edits to unrelated resources.
+
+## Where it lives in the code
+
+- Token mapping: `server/Relay.Infrastructure/Persistence/RelayDbContext.cs:112` (`IsConcurrencyToken`).
+- `server/Relay.Api/Controllers/FlowsController.cs` — early compare (`:103-104`), rotation (`:112`), exception mapping (`:127-131`), 409 problem body (`:137-140`).
+- Tests: `server/Relay.Tests/ConcurrencyExpansionTests.cs`, `FlowsApiTests.cs`.
+
+## Known gaps
+
+- **The token is optional.** The early check only runs when `ExpectedConcurrencyToken` is present (`:103`); a client that omits it gets last-write-wins.
+- **Import bypasses it** (see ADR-0007's gaps): the import update branch neither compares nor rotates the token.
+- No test issues two simultaneous `PUT`s, so the `DbUpdateConcurrencyException` branch (`:127-131`) is reached only by reasoning, not by a test.

@@ -26,3 +26,9 @@ validated C# records (the single source of truth). Do **not** reintroduce
   is an acceptable trade.
 - If a generated spec is wanted later, a different, stable generator can be chosen —
   the constraint is specifically against `Microsoft.OpenApi` 2.x.
+
+## Verifying the decision
+
+No `.csproj` under `server/` references `Microsoft.OpenApi` (a search for `OpenApi` across `*.csproj` files returns nothing). The request/response records under `server/Relay.Api/Contracts/` are the source of truth for `docs/api-reference.md`.
+
+**Goal:** catch reference drift. **Check:** list every `[ProducesResponseType]` status code on `HooksController.Trigger` (`server/Relay.Api/Controllers/HooksController.cs:44-48`: 202, 401, 404, 409, 429) and confirm each appears in the `POST /api/hooks/{token}` section of `api-reference.md`.
